@@ -1,4 +1,4 @@
 DEFAULT_GAME_SETTINGS = {
-    bgMusicEnabled = true,
+    backgroundMusicEnabled = true,
     highScore = 0
 }

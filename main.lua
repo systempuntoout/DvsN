@@ -9,6 +9,7 @@
 local shake = require "shake"
 local physics = require("physics")
 local loadsave = require( "loadsave" )
+local sheetInfo = require("spritesheet")
 local defaultSettings = require("defaultSettings")
 display.setStatusBar(display.HiddenStatusBar);
 physics.start()
@@ -19,8 +20,6 @@ local loadedSettings = loadsave.loadTable( "settings.json")
 if loadedSettings == nil then
     loadsave.saveTable( DEFAULT_GAME_SETTINGS, "settings.json" )
 end
-
-
 
 --Variables
 local _H = display.contentHeight/2
@@ -36,8 +35,19 @@ local BALL_VELOCITY_INCREASE = 2.5
 local score = 0
 local paddle
 local ball
-local backgroundMusicEnabled = false
+local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
 
+-- Sheets
+local myImageSheet = graphics.newImageSheet ( "images/spritesheet.png", sheetInfo:getSheet() )
+
+-- Background sound
+  local soundOptionSequenceData = {
+    {
+    name="soundOption",                                  
+    sheet=myImageSheet,                          
+    frames= { 12, 18 }
+    }
+}
 
 --Music
 local bgMusic = audio.loadStream("sounds/backgroundmusic.mp3");
@@ -45,6 +55,62 @@ local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistle = audio.loadSound("sounds/whistle.mp3");
 local enemyOw = audio.loadSound("sounds/ow.mp3");
 audio.setVolume(MASTER_VOLUME)
+
+-- Show the Title Screen
+function showTitleScreen()
+
+	-- Place all title elements into 1 group
+	titleScreenGroup = display.newGroup()	
+	
+	titleScreen = display.newImage("images/soccerfield.jpg", 0, 0, true);
+	titleScreen.x = _W;
+	titleScreen.y = _H;
+
+  
+  -- DiegoNik
+	diegoNik = display.newImage("images/diegonik.png")
+	diegoNik.x = _W;
+	diegoNik.y = _H-(_H/2) ;
+  diegoNik.xScale = 0.5
+  diegoNik.yScale = 0.5
+  
+  -- Title
+	title = display.newImage("images/gameTitle.png")
+	title.x = _W;
+	title.y = _H-(_H/10) ;
+  title.xScale = 0.5
+  title.yScale = 0.5
+  
+  -- Display play button image
+	playBtn = display.newImage("images/giocaButton.png")
+	playBtn.x = _W;
+	playBtn.y = _H+(_H/2) ;
+	playBtn.name = "playbutton";
+  
+  --Sound option
+  soundOptionSprite = display.newSprite( myImageSheet, soundOptionSequenceData )
+  soundOptionSprite.anchorX = 0
+  soundOptionSprite.anchorY = 1
+	soundOptionSprite.x = 2;
+	soundOptionSprite.y = _H*2 ; 
+  soundOptionSprite.xScale = 0.2
+  soundOptionSprite.yScale = 0.2
+  
+  if backgroundMusicEnabled then
+    soundOptionSprite:setFrame(2)
+  else
+    soundOptionSprite:setFrame(1)
+  end
+
+	-- Insert backgroudn and button into group
+	titleScreenGroup:insert(titleScreen);
+	titleScreenGroup:insert(playBtn);
+
+	-- Make play button interactive
+	playBtn:addEventListener("tap", loadGame);
+  soundOptionSprite:addEventListener("tap", soundConfig);
+
+end
 
 -- Set up the game space
 function initializeGameScreen()
@@ -177,10 +243,15 @@ function gameplay()
     
     if lifeGroup.numChildren == 0 then
       gameListeners("remove");
-      ball:removeSelf()
-      paddle:removeSelf()
+      ball:removeSelf(); ball= nil
+      paddle:removeSelf(); paddle = nil
       audio.fade(1)
       audio.play(whistle, {channel = 2, loops = 2})
+      if score > loadedSettings.highScore then
+        loadedSettings.highScore = score
+        loadsave.saveTable( loadedSettings, "settings.json" )
+      end 
+      
       textBoxScreen("GAME OVER", "Punti: "..score)
     end
 end
@@ -210,7 +281,7 @@ function generateMonster()
           audio.play(enemyOw)
           startShake()
           timer.performWithDelay( 300, stopShake )
-          enemy:removeSelf()
+          enemy:removeSelf();enemy = nil
       end);
     end
 
@@ -262,11 +333,20 @@ function textBoxScreen(title, message)
 	messageText.yScale = 0.5;
 	messageText.x = display.contentCenterX;
 	messageText.y = display.contentCenterY + 15;
+  
+  --Try Again or Congrats Text
+	bestScoreText = display.newText("Record: "..loadedSettings.highScore, 0, 0, "Arial", 24);
+	bestScoreText:setTextColor(255,255,255,255);
+	bestScoreText.xScale = 0.5;
+	bestScoreText.yScale = 0.5;
+	bestScoreText.x = display.contentCenterX;
+	bestScoreText.y = display.contentCenterY + 30;
  
 	-- Add all elements into a new group
 	textBoxGroup = display.newGroup();
 	textBoxGroup:insert(textBox);
 	textBoxGroup:insert(conditionDisplay);
+  textBoxGroup:insert(bestScoreText)
 	textBoxGroup:insert(messageText);
  
 	-- Make text box interactive
@@ -278,69 +358,17 @@ function restart()
   textBox:removeEventListener("tap", restart);
 end
 
--- Show the Title Screen
-function showTitleScreen()
-
-	-- Place all title elements into 1 group
-	titleScreenGroup = display.newGroup()	
-	
-	titleScreen = display.newImage("images/soccerfield.jpg", 0, 0, true);
-	titleScreen.x = _W;
-	titleScreen.y = _H;
-
-  
-  -- DiegoNik
-	diegoNik = display.newImage("images/diegonik.png")
-	diegoNik.x = _W;
-	diegoNik.y = _H-(_H/2) ;
-  diegoNik.xScale = 0.5
-  diegoNik.yScale = 0.5
-  
-  -- Title
-	title = display.newImage("images/gameTitle.png")
-	title.x = _W;
-	title.y = _H ;
-  title.xScale = 0.5
-  title.yScale = 0.5
-  
-  -- Display play button image
-	playBtn = display.newImage("images/giocaButton.png")
-	playBtn.x = _W;
-	playBtn.y = _H+(_H/2) ;
-	playBtn.name = "playbutton";
-  
-  -- Background sound
-  local soundOptionText 
-  if backgroundMusicEnabled then
-    soundOptionText = "SOUND_ON"
-  else
-    soundOptionText = "SOUND_OFF"
-  end
-  
-  soundOption = display.newText(soundOptionText, 22, 5, "Arial", 14)
-  soundOption.anchorX = 0
-  soundOption.anchorY = 1
-	soundOption.x = 2;
-	soundOption.y = _H*2 ;
-
-	-- Insert backgroudn and button into group
-	titleScreenGroup:insert(titleScreen);
-	titleScreenGroup:insert(playBtn);
-
-	-- Make play button interactive
-	playBtn:addEventListener("tap", loadGame);
-  soundOption:addEventListener("tap", soundConfig);
-
-end
 
 function soundConfig()
   if backgroundMusicEnabled then
      backgroundMusicEnabled = false
-     soundOption.text = "SOUND_OFF"
+     soundOptionSprite:setFrame(1)
   else
     backgroundMusicEnabled = true
-    soundOption.text = "SOUND_ON"
+    soundOptionSprite:setFrame(2)
   end
+  loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
+  loadsave.saveTable( loadedSettings, "settings.json" )
 end
 
 
@@ -351,7 +379,7 @@ function loadGame(event)
 	if event.target.name == "playbutton" then
 		transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
 		playBtn:removeEventListener("tap", loadGame);
-    soundOption:removeEventListener("tap", soundConfig);
+    soundOptionSprite:removeEventListener("tap", soundConfig);
 	end
 end
 
