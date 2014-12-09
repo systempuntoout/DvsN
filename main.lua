@@ -5,15 +5,27 @@
 -----------------------------------------------------------------------------------------
 --require('mobdebug').start() 
 
+display.setStatusBar(display.HiddenStatusBar);
+
 --Libraries
+   
 local shake = require "shake"
 local physics = require("physics")
 local loadsave = require( "loadsave" )
 local sheetInfo = require("spritesheet")
 local defaultSettings = require("defaultSettings")
-display.setStatusBar(display.HiddenStatusBar);
+local utility = require("utility")
+
 physics.start()
 --physics.setDrawMode( "hybrid" )
+--local performance = require('performance')
+--performance:newPerformanceMeter()
+--function checkMemory()
+--   collectgarbage( "collect" )
+--   local memUsage_str = string.format( "MEMORY = %.3f KB", collectgarbage( "count" ) )
+--   print( memUsage_str, "TEXTURE = "..(system.getInfo("textureMemoryUsed") / (1024 * 1024) ) )
+--end
+--timer.performWithDelay( 1000, checkMemory, 0 )
 
 --Load settings
 local loadedSettings = loadsave.loadTable( "settings.json")
@@ -45,7 +57,7 @@ local myImageSheet = graphics.newImageSheet ( "images/spritesheet.png", sheetInf
     {
     name="soundOption",                                  
     sheet=myImageSheet,                          
-    frames= { 12, 18 }
+    frames= { 1, 2 }
     }
 }
 
@@ -234,7 +246,7 @@ function normalizeVelocity()
 end
 
 function gameplay()
-    if score > 5 * level then
+    if score > 3 * level then
       updateBallVelocity()
       generateMonster()
       level = level +1
@@ -264,6 +276,7 @@ end
 
 function generateMonster()
     local enemy = display.newImage("images/enemy.png")
+    enemy.name = "Niki"
     enemy.isVisible = false
     enemy.anchorX = 0
     enemy.anchorY = 0
@@ -277,14 +290,17 @@ function generateMonster()
     if not esisteEnemy then
       enemy.isVisible = true
       physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27})
-      enemy:addEventListener("collision", function()
-          audio.play(enemyOw)
-          startShake()
-          timer.performWithDelay( 300, stopShake )
-          enemy:removeSelf();enemy = nil
-      end);
+      enemy:addEventListener("collision", destroyMonster);
+    else
+      enemy:removeSelf();enemy = nil
     end
+end
 
+function destroyMonster(event)
+   audio.play(enemyOw)
+   startShake()
+   timer.performWithDelay( 300, stopShake )
+   event.target:removeSelf();event.target = nil
 end
 
 function onBounce(event)
