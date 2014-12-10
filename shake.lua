@@ -5,18 +5,20 @@ local shakeCount = 0
 local xShake = 8
 local yShake = 4
 local shakePeriod = 2
+local currentStageX = display.currentStage.x
+local currentStageY = display.currentStage.y 
 
 local function shake()
    if(shakeCount % shakePeriod == 0 ) then
-      display.currentStage.x = display.currentStage.x0 + math.random( -xShake, xShake )
-      display.currentStage.y = display.currentStage.y0 + math.random( -yShake, yShake )
+      display.currentStage.x = currentStageX + math.random( -xShake, xShake )
+      display.currentStage.y = currentStageY + math.random( -yShake, yShake )
    end
    shakeCount = shakeCount + 1
 end
 
 function startShake()
-   display.currentStage.x0 = display.currentStage.x
-   display.currentStage.y0 = display.currentStage.y
+   --display.currentStage.x0 = currentStageX
+   --display.currentStage.y0 = currentStageY
    shakeCount = 0
    Runtime:addEventListener( "enterFrame", shake )
 end
@@ -25,7 +27,7 @@ function stopShake()
    Runtime:removeEventListener( "enterFrame", shake )
    timer.performWithDelay( 50, 
    function() 
-      display.currentStage.x = display.currentStage.x0 
-      display.currentStage.y = display.currentStage.y0
+      display.currentStage.x = currentStageX 
+      display.currentStage.y = currentStageY
    end )
 end 

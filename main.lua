@@ -17,6 +17,7 @@ local defaultSettings = require("defaultSettings")
 local utility = require("utility")
 
 physics.start()
+physics.setGravity(0, 15)
 --physics.setDrawMode( "hybrid" )
 --local performance = require('performance')
 --performance:newPerformanceMeter()
@@ -28,14 +29,17 @@ physics.start()
 --timer.performWithDelay( 1000, checkMemory, 0 )
 
 --Load settings
-local loadedSettings = loadsave.loadTable( "settings.json")
+local loadedSettings 
+loadedSettings = loadsave.loadTable( "settings.json")
 if loadedSettings == nil then
     loadsave.saveTable( DEFAULT_GAME_SETTINGS, "settings.json" )
+    loadedSettings = loadsave.loadTable( "settings.json")
 end
 
+
 --Variables
-local _H = display.contentHeight/2
-local _W = display.contentWidth/2
+local _CENTER_HEIGHT = display.contentHeight/2
+local _CENTER_WIDTH = display.contentWidth/2
 local _X_BALLSTARTPOSITION = 160
 local _Y_BALLSTARTPOSITION = 240
 local _X_PADDLESTARTPOSITION = 160
@@ -48,6 +52,7 @@ local score = 0
 local paddle
 local ball
 local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
+local ReboundsBeforeIncreaseDifficulty = 1
 
 -- Sheets
 local myImageSheet = graphics.newImageSheet ( "images/spritesheet.png", sheetInfo:getSheet() )
@@ -75,28 +80,28 @@ function showTitleScreen()
 	titleScreenGroup = display.newGroup()	
 	
 	titleScreen = display.newImage("images/soccerfield.jpg", 0, 0, true);
-	titleScreen.x = _W;
-	titleScreen.y = _H;
+	titleScreen.x = _CENTER_WIDTH;
+	titleScreen.y = _CENTER_HEIGHT;
 
   
   -- DiegoNik
 	diegoNik = display.newImage("images/diegonik.png")
-	diegoNik.x = _W;
-	diegoNik.y = _H-(_H/2) ;
+	diegoNik.x = _CENTER_WIDTH;
+	diegoNik.y = _CENTER_HEIGHT-(_CENTER_HEIGHT/2) ;
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
   
   -- Title
 	title = display.newImage("images/gameTitle.png")
-	title.x = _W;
-	title.y = _H-(_H/10) ;
+	title.x = _CENTER_WIDTH;
+	title.y = _CENTER_HEIGHT-(_CENTER_HEIGHT/10) ;
   title.xScale = 0.5
   title.yScale = 0.5
   
   -- Display play button image
 	playBtn = display.newImage("images/giocaButton.png")
-	playBtn.x = _W;
-	playBtn.y = _H+(_H/2) ;
+	playBtn.x = _CENTER_WIDTH;
+	playBtn.y = _CENTER_HEIGHT+(_CENTER_HEIGHT/2) ;
 	playBtn.name = "playbutton";
   
   --Sound option
@@ -104,7 +109,7 @@ function showTitleScreen()
   soundOptionSprite.anchorX = 0
   soundOptionSprite.anchorY = 1
 	soundOptionSprite.x = 2;
-	soundOptionSprite.y = _H*2 ; 
+	soundOptionSprite.y = _CENTER_HEIGHT*2 ; 
   soundOptionSprite.xScale = 0.2
   soundOptionSprite.yScale = 0.2
   
@@ -129,17 +134,18 @@ function initializeGameScreen()
   
   --Background
   local background = display.newImage( "images/soccerfield.jpg")
-  background.x = _W
-  background.y = _H
+  background.x = _CENTER_WIDTH
+  background.y = _CENTER_HEIGHT
   
   --lifegroup
   lifeGroup = display.newGroup()
   for i=1, NUMBER_OF_LIFES  do
     local life = display.newImage( "images/life.png" )
     life.y = 10
-    life.x = _H + (life.width*i+3)
+    life.x = _CENTER_HEIGHT + (life.width*i+3)
     lifeGroup.insert(lifeGroup, life)
   end
+  lifeGroup:toFront()
 
   --Ball
   ball = display.newImage( "images/ball3.png" )
@@ -159,7 +165,7 @@ function initializeGameScreen()
   --Walls
   rectLeft = display.newRect(0, display.contentHeight/2, 0 , display.contentHeight)
   rectRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
-  rectTop = display.newRect(_W, -1, _W*2, 0)
+  rectTop = display.newRect(_CENTER_WIDTH, -1, _CENTER_WIDTH*2, 0)
  
 	paddle:addEventListener("tap", startGame)
 end
@@ -189,18 +195,18 @@ end
 function gameListeners(event)
 	if event == "add" then
 		Runtime:addEventListener( "touch", dragPaddle )
-    Runtime:addEventListener( "enterFrame", tick )
+    Runtime:addEventListener( "enterFrame", gameLoop )
     paddle:addEventListener("collision", onBounce);
 
 	-- Remove listeners when not needed to free up memory
 	elseif event == "remove" then
-		Runtime:removeEventListener( "enterFrame", tick )
+		Runtime:removeEventListener( "enterFrame", gameLoop )
     Runtime:removeEventListener( "touch", dragPaddle )
     paddle:removeEventListener("collision", onBounce);
 	end
 end
 
-function tick() 
+function gameLoop() 
   updateBall()
   normalizeVelocity()
   gameplay()
@@ -211,7 +217,7 @@ function updateBall()
   --Check perso vita
   if ball.y + ball.height > paddle.y + paddle.height then
              audio.play(whistle)
-             Runtime:removeEventListener( "enterFrame", tick )
+             Runtime:removeEventListener( "enterFrame", gameLoop )
              local tm = timer.performWithDelay( 1500, function() 
              ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
              ball.v = 0
@@ -219,7 +225,7 @@ function updateBall()
              paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION   
              scoreNum.text = score;
              lifeGroup:remove(1) 
-             Runtime:addEventListener( "enterFrame", tick )
+             Runtime:addEventListener( "enterFrame", gameLoop )
            end )
   end
 end
@@ -246,7 +252,7 @@ function normalizeVelocity()
 end
 
 function gameplay()
-    if score > 3 * level then
+    if score >= ReboundsBeforeIncreaseDifficulty * level then
       updateBallVelocity()
       generateMonster()
       level = level +1
@@ -255,8 +261,8 @@ function gameplay()
     
     if lifeGroup.numChildren == 0 then
       gameListeners("remove");
-      ball:removeSelf(); ball= nil
-      paddle:removeSelf(); paddle = nil
+      killObject(ball)
+      killObject(paddle)
       audio.fade(1)
       audio.play(whistle, {channel = 2, loops = 2})
       if score > loadedSettings.highScore then
@@ -280,27 +286,49 @@ function generateMonster()
     enemy.isVisible = false
     enemy.anchorX = 0
     enemy.anchorY = 0
-    local randomX = math.random(0, _W*2 - enemy.width)
-    local randomY = math.random(0, _H-(_H/2))
-    
+    local randomX = math.random(0, _CENTER_WIDTH*2 - enemy.width)
+    local randomY = math.random(0, _CENTER_HEIGHT-(_CENTER_HEIGHT/2))
+    enemy.name = "Niki" .. randomX .. "|" .. randomY
     enemy.x = randomX
     enemy.y = randomY
     
     local esisteEnemy = physics.queryRegion( randomX, randomY, randomX+enemy.width, randomY+enemy.height )
     if not esisteEnemy then
       enemy.isVisible = true
-      physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27})
+      enemy.alpha=0.7
+      timer.performWithDelay(100, function()
+                                    physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27}) 
+                                    transition.to(enemy, {alpha=1})  
+                                  end)
       enemy:addEventListener("collision", destroyMonster);
     else
-      enemy:removeSelf();enemy = nil
+      killObject(enemy)
     end
 end
 
+
+function spawnEnemy()
+    local foo = display.newImage("images/ball3.png")
+    foo.x = _CENTER_WIDTH; foo.y = _CENTER_HEIGHT
+    foo.name = "enemy"; 
+    physics.addBody( foo, "dynamic" )
+    local function checkLocation()
+        if foo.y ==_CENTER_HEIGHT*2+45 then
+            Runtime:removeEventListener("enterFrame", checkLocation)
+        end
+    end
+    Runtime:addEventListener("enterFrame", checkLocation)
+end
+
 function destroyMonster(event)
+  if event.phase == "ended" then
+   local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
    audio.play(enemyOw)
    startShake()
    timer.performWithDelay( 300, stopShake )
-   event.target:removeSelf();event.target = nil
+   timer.performWithDelay(2, function() physics.removeBody(event.target) end)
+   transition.to(event.target, { time=400, x = _CENTER_WIDTH*2, y = 0, alpha= 0, onComplete=killObject })
+  end
 end
 
 function onBounce(event)
@@ -331,8 +359,8 @@ function textBoxScreen(title, message)
  
 	-- Display text box with win or lose message
 	textBox = display.newImage("images/textBox.png");
-	textBox.x = _W;
-	textBox.y = _H;
+	textBox.x = _CENTER_WIDTH;
+	textBox.y = _CENTER_HEIGHT;
  
 	-- Win or Lose Text
 	conditionDisplay = display.newText(title, 0, 0, "Arial", 38);
