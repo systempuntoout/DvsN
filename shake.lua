@@ -10,8 +10,8 @@ local currentStageY = display.currentStage.y
 
 local function shake()
    if(shakeCount % shakePeriod == 0 ) then
-      display.currentStage.x = currentStageX + math.random( -xShake, xShake )
-      display.currentStage.y = currentStageY + math.random( -yShake, yShake )
+      display.currentStage.x = currentStageX + mRandom( -xShake, xShake )
+      display.currentStage.y = currentStageY + mRandom( -yShake, yShake )
    end
    shakeCount = shakeCount + 1
 end
