@@ -16,6 +16,7 @@ local loadsave = require( "loadsave" )
 local powerupSheetInfo = require("powerupspritesheet")
 local sheetInfo = require("spritesheet")
 local defaultSettings = require("defaultSettings")
+local colors = require("colors")
 
 mRandom = math.random
 
@@ -44,26 +45,37 @@ local _SCREEN_LEFT  = display.screenOriginX
 local _SCREEN_REALHEIGHT  = _SCREEN_HEIGHT / display.contentScaleY
 local _SCREEN_REALWIDTH =  _SCREEN_WIDTH / display.contentScaleX
 
+local TEXT_TYPE = { SCORE = 1 , POWERUP = 2, GOAL = 3 }
+
 local DEBUG = false
 local _X_BALLSTARTPOSITION = 160
 local _Y_BALLSTARTPOSITION = 240
 local _X_PADDLESTARTPOSITION = 160
 local _Y_PADDLESTARTPOSITION = 440
 local NUMBER_OF_LIVES = 3
-local MASTER_VOLUME = 0.1
+local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 700
 local BALL_VELOCITY_INCREASE = 2
-local REBOUNDS_FOR_VELOCITY_INCREASE = 1
-local SKIP_MAIN_SCREEN = false
+local SKIP_MAIN_SCREEN = true
+
+
+local POWERUP_SPAWN_MIN = 15000
+local POWERUP_SPAWN_MAX = 20000
+local MONSTER_SPAWN_MIN = 5000
+local MONSTER_SPAWN_MAX = 8000
+local VELOCITY_INCREASE_MIN = 10000
+local VELOCITY_INCREASE_MAX = 15000 
+  
+local TIME_LAST_POWERUP = 1000
+local TIME_LAST_MONSTER = 10000
+local TIME_LAST_VELOCITY_INCREASE = 5000
+
 local score = 0
+local increaseVelocityOnBounce = false
 local paddle
 local ball
 local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
 local current_lives = NUMBER_OF_LIVES
-
-local timeLastPowerUp = 1000
-local timeLastMonster = 10000
-local timeLastVelocityIncrease = 10000
 
 
 local POWER_UPS = {"r","g","b","P","B","S"}
@@ -163,14 +175,14 @@ local powerUpSequenceData = {
 
 
 --Music
-local bgMusic = audio.loadStream("sounds/backgroundmusic2.wav");
+local musicBackground = audio.loadStream("sounds/backgroundmusic2.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
-local whistle = audio.loadSound("sounds/whistle.mp3");
-local enemyOw = audio.loadSound("sounds/ow.mp3");
-local powerUp = audio.loadSound("sounds/powerup.wav");
-local newLive = audio.loadSound("sounds/newLive.wav");
-local ironWall = audio.loadSound("sounds/ironWall.mp3");
-local goal = audio.loadSound("sounds/goal.mp3");
+local whistleSound = audio.loadSound("sounds/whistle.mp3");
+local enemySound = audio.loadSound("sounds/ow.mp3");
+local powerUpSound = audio.loadSound("sounds/powerup.wav");
+local newLiveSound = audio.loadSound("sounds/newLive.wav");
+local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
+local goalSound = audio.loadSound("sounds/goal.mp3");
 audio.setVolume(MASTER_VOLUME)
 
 -- Show the Title Screen
@@ -254,7 +266,6 @@ function initializeGameScreen()
   ball = display.newImage( "images/ball3.png" )
   ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
 
-
   --Paddle
   paddle = display.newImage("images/diego2.png")
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
@@ -266,10 +277,10 @@ function initializeGameScreen()
   scoreNum:setTextColor(255, 255, 255, 255)
 
   --Walls
-  rectLeft = display.newRect(0, display.contentHeight/2, 0 , display.contentHeight)
-  rectRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
-  rectTopLeft = display.newRect(55, 23, 110, 0)
-  rectTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
+  wallLeft = display.newRect(0, display.contentHeight/2, 0 , display.contentHeight)
+  wallRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
+  wallTopLeft = display.newRect(55, 23, 110, 0)
+  wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
   paddle:addEventListener("tap", startGame)
 end
 
@@ -278,16 +289,16 @@ function startGame()
     if audio.isChannelActive(1) then
       audio.setVolume(MASTER_VOLUME +1, {channel = 1})
     else
-      audio.play(bgMusic, {channel = 1,loops =- 1});
+      audio.play(musicBackground, {channel = 1,loops =- 1});
     end
   end
   paddle.bounciness = 0.1;
   physics.addBody( ball, "dynamic", {density = 1.0, friction = 1, bounce = 1.05, radius = 25, filter = {groupIndex = -1} })
   physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce = paddle.bounciness, radius = 26})
-  physics.addBody(rectLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
-  physics.addBody(rectRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
-  physics.addBody(rectTopLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
-  physics.addBody(rectTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(wallLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(wallRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(wallTopLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(wallTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
 
   score = 0
   current_lives = NUMBER_OF_LIVES
@@ -323,7 +334,7 @@ function updateBall()
 
   --Check goal
   if ball.y - (ball.height/2) < 0 then
-    audio.play(goal)
+    goal()
     ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
     ball.v = 0
     ball:applyAngularImpulse( mRandom(200, 400) )
@@ -333,7 +344,7 @@ function updateBall()
   
   -- Lost ball
   if ball.y + (ball.height/2) > _SCREEN_CENTRE_Y*2 then
-    audio.play(whistle)
+    audio.play(whistleSound)
     ball.isVisible = false;
     Runtime:removeEventListener( "enterFrame", gameLoop )
     local tm = timer.performWithDelay( 1000, function() 
@@ -353,7 +364,7 @@ function updateBall()
   end
 end
 
-function normalizeVelocity()
+function ball:normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity()
 
   if thisX >MAX_BALL_VELOCITY then
@@ -376,17 +387,17 @@ end
 
 function gameplay(event)
 
-  if event.time-timeLastPowerUp >= mRandom(5000, 6000) and not gameOver() then
+  if event.time-TIME_LAST_POWERUP >= mRandom(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX) and not gameOver() then
     spawnPowerUp()
-    timeLastPowerUp = event.time
+    TIME_LAST_POWERUP = event.time
   end
-  if event.time-timeLastMonster >= mRandom(8000, 12000) and not gameOver() then
+  if event.time-TIME_LAST_MONSTER >= mRandom(MONSTER_SPAWN_MIN, MONSTER_SPAWN_MAX) and not gameOver() then
     spawnMonster()
-    timeLastMonster = event.time
+    TIME_LAST_MONSTER = event.time
   end
-  if event.time-timeLastVelocityIncrease >= mRandom(60000, 120000) and not gameOver() then
-    updateBallVelocity()
-    timeLastVelocityIncrease = event.time
+  if event.time-TIME_LAST_VELOCITY_INCREASE >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
+    TIME_LAST_VELOCITY_INCREASE = event.time
+    increaseVelocityOnBounce = true
   end
 
 
@@ -395,7 +406,7 @@ function gameplay(event)
     killObject(ball)
     killObject(paddle)
     audio.fade(1)
-    audio.play(whistle, {channel = 2, loops = 2})
+    audio.play(whistleSound, {channel = 2, loops = 2})
     if score > loadedSettings.highScore then
       loadedSettings.highScore = score
       loadsave.saveTable( loadedSettings, "settings.json" )
@@ -408,7 +419,7 @@ end
 
 
 function addLive()
-  audio.play(newLive)
+  audio.play(newLiveSound)
   current_lives = current_lives + 1
   liveNum.text = current_lives
 end 
@@ -479,11 +490,9 @@ function spawnAdditionalBall()
     end 
     -- Goal
     if additionalBall.height~= nil and additionalBall.y - (additionalBall.height/2) < 0 then
-        audio.play(goal)
-        score = score + 200
+        goal()
         killObject(additionalBall)
-        Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
-        
+        Runtime:removeEventListener("enterFrame", additionalBallGameLogic)      
     end
     -- Lost
     if additionalBall.height~= nil and additionalBall.y >=_SCREEN_CENTRE_Y*2+additionalBall.height then
@@ -494,7 +503,7 @@ function spawnAdditionalBall()
   Runtime:addEventListener("enterFrame", additionalBallGameLogic)
 end
 
-function updateBounciness()
+function updatePaddleBounciness()
   local bounce = paddle.bounciness
   paddle.bounciness = bounce + 0.5
   physics.removeBody( paddle)
@@ -527,26 +536,32 @@ function spawnPowerUp()
       
       if myPowerUpSprites ~= nil and myPowerUpSprites.x~=nil  and hasCollidedCircle(myPowerUpSprites,paddle) then
           if myPowerUpSprites.name == "powerUp_r" then      
-            audio.play(powerUp)
-            updateBounciness()
-            score = score+100
+            audio.play(powerUpSound)
+            updatePaddleBounciness()
+            increaseScore(100)
+            inGameText(".Bounce.", TEXT_TYPE.POWERUP, "yellow")
           elseif myPowerUpSprites.name == "powerUp_g" then
-            audio.play(powerUp)
-            score = score+100
+            audio.play(powerUpSound)
+            increaseScore(1000)
+            inGameText(".1000 Points.", TEXT_TYPE.POWERUP, "skyblue")
           elseif myPowerUpSprites.name == "powerUp_b" then
-            audio.play(ironWall)
+            audio.play(ironWallSound)
             addLifeSaver()
+            increaseScore(100)
+            inGameText(".Shield.", TEXT_TYPE.POWERUP, "silver")
           elseif myPowerUpSprites.name == "powerUp_P" then
             addLive()
-            score = score+100
+            inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
           elseif myPowerUpSprites.name == "powerUp_B" then
-            audio.play(powerUp)
+            audio.play(powerUpSound)
             spawnAdditionalBall()
-            score = score+100
+            increaseScore(100)
+            inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "blue")
           elseif myPowerUpSprites.name == "powerUp_S" then
-            audio.play(powerUp)
+            audio.play(powerUpSound)
             updateBallVelocity()
-            score = score+100
+            increaseScore(100)
+            inGameText(".Speed.", TEXT_TYPE.POWERUP, "orange")
           end
 
           killObject(myPowerUpSprites)
@@ -560,9 +575,8 @@ end
 function destroyMonster(event)
   if event.phase == "ended" then
     local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
-    audio.play(enemyOw)
-    startShake()
-    timer.performWithDelay( 300, stopShake )
+    increaseScore(50)
+    audio.play(enemySound)
     timer.performWithDelay(2, function() physics.removeBody(event.target) end)
     transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
   end
@@ -574,14 +588,61 @@ function addLifeSaver()
   transition.to(lifeSaver, { time=20000,alpha= 0, onComplete=killObject })
 end
 
+function increaseScore(delta)
+  score = score + delta
+  inGameText("+" .. delta, TEXT_TYPE.SCORE)
+  scoreNum.text = score;
+end
+
+function goal()
+  audio.play(goalSound)
+  startShake()
+  timer.performWithDelay( 300, stopShake )
+  inGameText("GOAL!", TEXT_TYPE.GOAL)
+  increaseScore(500)
+end
+
+
 function onBounce(event)
 
   if event.phase == "began" then
     audio.play(bounceSound);
-    score = score + 1;
-    scoreNum.text = score;
+    increaseScore(10)
+    if increaseVelocityOnBounce then
+       updateBallVelocity()
+       increaseVelocityOnBounce = false
+    end
   end 
 end
+
+function inGameText(text, textType, color)
+  
+  if textType == TEXT_TYPE.SCORE then
+    local points_Text = display.newText(text, 30, 100,native.systemFontBold,25)
+    colors.setTextColor(points_Text, 'whitesmoke')
+    transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})
+  elseif textType == TEXT_TYPE.POWERUP then
+    local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,native.systemFontBold,50)
+    colors.setTextColor(powerUp_Text, color)
+    transition.to(powerUp_Text,{time = 500, 
+                                x = _SCREEN_CENTRE_X, 
+                                onComplete = function()  
+                                                transition.to(powerUp_Text,{time = 500, 
+                                                                            alpha = 0, 
+                                                                            y = 0, 
+                                                                            onComplete=killObject})
+                                             end})
+  elseif textType == TEXT_TYPE.GOAL then
+    local goal_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),native.systemFontBold,50)
+    colors.setTextColor(goal_Text,'yellow')
+    transition.to(goal_Text,{time = 1000, 
+                             alpha = 0, 
+                             y = 0, 
+                            onComplete=killObject})
+  end
+  
+end
+
 
 function dragPaddle(event)
 
