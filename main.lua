@@ -22,16 +22,6 @@ mRandom = math.random
 local gameplayItemsGroup = display.newGroup()
 
 physics.start()
---physics.setGravity(0, 15)
---physics.setDrawMode( "hybrid" )
---local performance = require('performance')
---performance:newPerformanceMeter()
---function checkMemory()
---   collectgarbage( "collect" )
---   local memUsage_str = string.format( "MEMORY = %.3f KB", collectgarbage( "count" ) )
---   print( memUsage_str, "TEXTURE = "..(system.getInfo("textureMemoryUsed") / (1024 * 1024) ) )
---end
---timer.performWithDelay( 1000, checkMemory, 0 )
 
 --Load settings
 local loadedSettings 
@@ -43,8 +33,18 @@ end
 
 
 --Variables
-local _CENTER_HEIGHT = display.contentHeight/2
-local _CENTER_WIDTH = display.contentWidth/2
+local _SCREEN_CENTRE_Y = display.contentHeight/2
+local _SCREEN_CENTRE_X = display.contentWidth/2
+local _SCREEN_WIDTH = display.contentWidth - (display.screenOriginX*2)
+local _SCREEN_HEIGHT = display.contentHeight - (display.screenOriginY*2)
+local _SCREEN_TOP = display.screenOriginY 
+local _SCREEN_RIGHT = display.contentWidth - display.screenOriginX
+local _SCREEN_BOTTOM = display.contentHeight - display.screenOriginY
+local _SCREEN_LEFT  = display.screenOriginX
+local _SCREEN_REALHEIGHT  = _SCREEN_HEIGHT / display.contentScaleY
+local _SCREEN_REALWIDTH =  _SCREEN_WIDTH / display.contentScaleX
+
+local DEBUG = false
 local _X_BALLSTARTPOSITION = 160
 local _Y_BALLSTARTPOSITION = 240
 local _X_PADDLESTARTPOSITION = 160
@@ -52,9 +52,9 @@ local _Y_PADDLESTARTPOSITION = 440
 local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.1
 local MAX_BALL_VELOCITY = 700
-local BALL_VELOCITY_INCREASE = 1
-local REBOUNDS_FOR_VELOCITY_INCREASE = 3
-local SKIP_MAIN_SCREEN = true
+local BALL_VELOCITY_INCREASE = 2
+local REBOUNDS_FOR_VELOCITY_INCREASE = 1
+local SKIP_MAIN_SCREEN = false
 local score = 0
 local paddle
 local ball
@@ -62,10 +62,33 @@ local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
 local current_lives = NUMBER_OF_LIVES
 
 local timeLastPowerUp = 1000
-local timeLastMonster = 100000
+local timeLastMonster = 10000
+local timeLastVelocityIncrease = 10000
 
 
 local POWER_UPS = {"r","g","b","P","B","S"}
+
+if DEBUG then
+  physics.setDrawMode( "hybrid" )
+  local performance = require('performance')
+  performance:newPerformanceMeter()
+  function checkMemory()
+     collectgarbage( "collect" )
+     local memUsage_str = string.format( "MEMORY = %.3f KB", collectgarbage( "count" ) )
+     print( memUsage_str, "TEXTURE = "..(system.getInfo("textureMemoryUsed") / (1024 * 1024) ) )
+  end
+  timer.performWithDelay( 1000, checkMemory, 0 )
+  print("_SCREEN_CENTRE_Y :" .. _SCREEN_CENTRE_Y)
+  print("_SCREEN_CENTRE_X :" .. _SCREEN_CENTRE_X)
+  print("_SCREEN_WIDTH :" .. _SCREEN_WIDTH)
+  print("_SCREEN_HEIGHT :" .. _SCREEN_HEIGHT)
+  print("_SCREEN_TOP :" .. _SCREEN_TOP)
+  print("_SCREEN_RIGHT :" .. _SCREEN_RIGHT)
+  print("_SCREEN_BOTTOM :" .. _SCREEN_BOTTOM)
+  print("_SCREEN_LEFT :" .. _SCREEN_LEFT)
+  print("_SCREEN_REALHEIGHT :" .. _SCREEN_REALHEIGHT)
+  print("_SCREEN_REALWIDTH :" .. _SCREEN_REALWIDTH)
+end
 
 
 
@@ -140,13 +163,14 @@ local powerUpSequenceData = {
 
 
 --Music
-local bgMusic = audio.loadStream("sounds/backgroundmusic.mp3");
+local bgMusic = audio.loadStream("sounds/backgroundmusic2.wav");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistle = audio.loadSound("sounds/whistle.mp3");
 local enemyOw = audio.loadSound("sounds/ow.mp3");
 local powerUp = audio.loadSound("sounds/powerup.wav");
 local newLive = audio.loadSound("sounds/newLive.wav");
 local ironWall = audio.loadSound("sounds/ironWall.mp3");
+local goal = audio.loadSound("sounds/goal.mp3");
 audio.setVolume(MASTER_VOLUME)
 
 -- Show the Title Screen
@@ -155,29 +179,29 @@ function showTitleScreen()
   -- Place all title elements into 1 group
   titleScreenGroup = display.newGroup()	
 
-  titleScreen = display.newImage("images/soccerfield.jpg", 0, 0, true);
-  titleScreen.x = _CENTER_WIDTH;
-  titleScreen.y = _CENTER_HEIGHT;
+  titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
+  titleScreen.x = _SCREEN_CENTRE_X;
+  titleScreen.y = _SCREEN_CENTRE_Y;
 
 
   -- DiegoNik
   diegoNik = display.newImage("images/diegonik.png")
-  diegoNik.x = _CENTER_WIDTH;
-  diegoNik.y = _CENTER_HEIGHT-(_CENTER_HEIGHT/2) ;
+  diegoNik.x = _SCREEN_CENTRE_X;
+  diegoNik.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2) ;
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
 
   -- Title
   title = display.newImage("images/gameTitle.png")
-  title.x = _CENTER_WIDTH;
-  title.y = _CENTER_HEIGHT-(_CENTER_HEIGHT/10) ;
+  title.x = _SCREEN_CENTRE_X;
+  title.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/10) ;
   title.xScale = 0.5
   title.yScale = 0.5
 
   -- Display play button image
   playBtn = display.newImage("images/giocaButton.png")
-  playBtn.x = _CENTER_WIDTH;
-  playBtn.y = _CENTER_HEIGHT+(_CENTER_HEIGHT/2) ;
+  playBtn.x = _SCREEN_CENTRE_X;
+  playBtn.y = _SCREEN_CENTRE_Y+(_SCREEN_CENTRE_Y/2) ;
   playBtn.name = "playbutton";
 
   --Sound option
@@ -185,7 +209,7 @@ function showTitleScreen()
   soundOptionSprite.anchorX = 0
   soundOptionSprite.anchorY = 1
   soundOptionSprite.x = 2;
-  soundOptionSprite.y = _CENTER_HEIGHT*2 ; 
+  soundOptionSprite.y = _SCREEN_CENTRE_Y*2 ; 
   soundOptionSprite.xScale = 0.2
   soundOptionSprite.yScale = 0.2
 
@@ -212,17 +236,17 @@ end
 function initializeGameScreen()
 
   --Background
-  local background = display.newImage( "images/soccerfield.jpg")
-  background.x = _CENTER_WIDTH
-  background.y = _CENTER_HEIGHT
+  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  background.x = _SCREEN_CENTRE_X
+  background.y = _SCREEN_CENTRE_Y
 
   --lives
   local live = display.newImage( "images/live.png" )
   live.y = 10
-  live.x = _CENTER_WIDTH+(_CENTER_WIDTH/1.5)
-  liveText = display.newText("x", _CENTER_WIDTH+(_CENTER_WIDTH/1.5)+15, 10, "Arial", 14)
+  live.x = _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)
+  liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 10, "Arial", 14)
   liveText:setTextColor(255, 255, 255, 255)
-  liveNum = display.newText(NUMBER_OF_LIVES, _CENTER_WIDTH+(_CENTER_WIDTH/1.5)+30, 10, "Arial", 14)
+  liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 10, "Arial", 14)
   liveNum:setTextColor(255, 255, 255, 255)
   
 
@@ -236,7 +260,7 @@ function initializeGameScreen()
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
 
   --Score
-  scoreText = display.newText("Punti:", 22, 10, "Arial", 14)
+  scoreText = display.newText("Punti: ", 22, 10, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
   scoreNum = display.newText("0", 54, 10, "Arial", 14)
   scoreNum:setTextColor(255, 255, 255, 255)
@@ -244,8 +268,8 @@ function initializeGameScreen()
   --Walls
   rectLeft = display.newRect(0, display.contentHeight/2, 0 , display.contentHeight)
   rectRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
-  rectTop = display.newRect(_CENTER_WIDTH, -1, _CENTER_WIDTH*2, 0)
-
+  rectTopLeft = display.newRect(55, 23, 110, 0)
+  rectTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
   paddle:addEventListener("tap", startGame)
 end
 
@@ -257,17 +281,19 @@ function startGame()
       audio.play(bgMusic, {channel = 1,loops =- 1});
     end
   end
+  paddle.bounciness = 0.1;
   physics.addBody( ball, "dynamic", {density = 1.0, friction = 1, bounce = 1.05, radius = 25, filter = {groupIndex = -1} })
-  physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce = 0.1, radius = 26})
+  physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce = paddle.bounciness, radius = 26})
   physics.addBody(rectLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
   physics.addBody(rectRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
-  physics.addBody(rectTop, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(rectTopLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
+  physics.addBody(rectTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
 
   score = 0
-  level = 1
+  current_lives = NUMBER_OF_LIVES
 
   ball:applyAngularImpulse( mRandom(100, 300) )
-  ball.angularDamping = 1.5;
+  ball.angularDamping = 0.3;
   paddle.isBullet = true;
   paddle:removeEventListener("tap", startGame);
   gameListeners("add");
@@ -295,14 +321,27 @@ end
 
 function updateBall()
 
-  --Check perso vita
-  if ball.y + ball.height > paddle.y + paddle.height then
+  --Check goal
+  if ball.y - (ball.height/2) < 0 then
+    audio.play(goal)
+    ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+    ball.v = 0
+    ball:applyAngularImpulse( mRandom(200, 400) )
+    ball:setLinearVelocity(0)
+    return
+  end
+  
+  -- Lost ball
+  if ball.y + (ball.height/2) > _SCREEN_CENTRE_Y*2 then
     audio.play(whistle)
+    ball.isVisible = false;
     Runtime:removeEventListener( "enterFrame", gameLoop )
-    local tm = timer.performWithDelay( 1500, function() 
+    local tm = timer.performWithDelay( 1000, function() 
         ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+        ball.isVisible = true;
         ball.v = 0
         ball:setLinearVelocity(0)
+        ball:applyAngularImpulse( mRandom(100, 300) )
         paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION   
         scoreNum.text = score;
         current_lives = current_lives -1
@@ -345,9 +384,9 @@ function gameplay(event)
     spawnMonster()
     timeLastMonster = event.time
   end
-  if score >= REBOUNDS_FOR_VELOCITY_INCREASE * level then
+  if event.time-timeLastVelocityIncrease >= mRandom(60000, 120000) and not gameOver() then
     updateBallVelocity()
-    level = level +1
+    timeLastVelocityIncrease = event.time
   end
 
 
@@ -389,8 +428,8 @@ function spawnMonster()
   enemy.isVisible = false
   enemy.anchorX = 0
   enemy.anchorY = 0
-  local randomX = mRandom(0, _CENTER_WIDTH*2 - enemy.width)
-  local randomY = mRandom(0, _CENTER_HEIGHT-(_CENTER_HEIGHT/2))
+  local randomX = mRandom(0, _SCREEN_CENTRE_X*2 - enemy.width)
+  local randomY = mRandom(0, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
   enemy.name = "Niki" .. randomX .. "|" .. randomY
   enemy.x = randomX
   enemy.y = randomY
@@ -412,7 +451,7 @@ end
 
 function spawnAdditionalBall()
   local additionalBall = display.newImage("images/additionalball.png")
-  additionalBall.x = mRandom(additionalBall.width,_CENTER_WIDTH*2-additionalBall.width); additionalBall.y = _CENTER_HEIGHT
+  additionalBall.x = mRandom(additionalBall.width,_SCREEN_CENTRE_X*2-additionalBall.width); additionalBall.y = _SCREEN_CENTRE_Y
   additionalBall.name = "enemy"; 
   additionalBall.xScale = 0.7;
   additionalBall.yScale = 0.7;
@@ -438,7 +477,16 @@ function spawnAdditionalBall()
       end
       additionalBall:setLinearVelocity(vx,vy )
     end 
-    if additionalBall.height~= nil and additionalBall.y >=_CENTER_HEIGHT*2+additionalBall.height then
+    -- Goal
+    if additionalBall.height~= nil and additionalBall.y - (additionalBall.height/2) < 0 then
+        audio.play(goal)
+        score = score + 200
+        killObject(additionalBall)
+        Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
+        
+    end
+    -- Lost
+    if additionalBall.height~= nil and additionalBall.y >=_SCREEN_CENTRE_Y*2+additionalBall.height then
         Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
     end
     
@@ -446,12 +494,19 @@ function spawnAdditionalBall()
   Runtime:addEventListener("enterFrame", additionalBallGameLogic)
 end
 
+function updateBounciness()
+  local bounce = paddle.bounciness
+  paddle.bounciness = bounce + 0.5
+  physics.removeBody( paddle)
+  physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce =  paddle.bounciness, radius = 26})
+end
+
 function spawnPowerUp()
     -- create sprite, set animation, play
     local myPowerUpSprites = display.newSprite( myPowerUpImageSheet, powerUpSequenceData )
     gameplayItemsGroup:insert(myPowerUpSprites)
     gameplayItemsGroup:toFront()
-    myPowerUpSprites.x = mRandom(myPowerUpSprites.width,_CENTER_WIDTH*2-myPowerUpSprites.width); myPowerUpSprites.y = myPowerUpSprites.height
+    myPowerUpSprites.x = mRandom(myPowerUpSprites.width,_SCREEN_CENTRE_X*2-myPowerUpSprites.width); myPowerUpSprites.y = myPowerUpSprites.height
     local power_up = POWER_UPS[mRandom(1,#POWER_UPS)]
     myPowerUpSprites:setSequence(power_up)
     myPowerUpSprites:play()
@@ -459,7 +514,7 @@ function spawnPowerUp()
     myPowerUpSprites.alpha=0.7
     timer.performWithDelay(200, function()
         transition.to(myPowerUpSprites, { time=5000, 
-                                          y = _CENTER_HEIGHT*2, 
+                                          y = _SCREEN_CENTRE_Y*2, 
                                           alpha= 1, 
                                           onComplete=function()
                                                       Runtime:removeEventListener("enterFrame", checkLocation)
@@ -473,6 +528,7 @@ function spawnPowerUp()
       if myPowerUpSprites ~= nil and myPowerUpSprites.x~=nil  and hasCollidedCircle(myPowerUpSprites,paddle) then
           if myPowerUpSprites.name == "powerUp_r" then      
             audio.play(powerUp)
+            updateBounciness()
             score = score+100
           elseif myPowerUpSprites.name == "powerUp_g" then
             audio.play(powerUp)
@@ -489,6 +545,7 @@ function spawnPowerUp()
             score = score+100
           elseif myPowerUpSprites.name == "powerUp_S" then
             audio.play(powerUp)
+            updateBallVelocity()
             score = score+100
           end
 
@@ -507,14 +564,14 @@ function destroyMonster(event)
     startShake()
     timer.performWithDelay( 300, stopShake )
     timer.performWithDelay(2, function() physics.removeBody(event.target) end)
-    transition.to(event.target, { time=400, x = _CENTER_WIDTH*2, y = 0, alpha= 0, onComplete=killObject })
+    transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
   end
 end
 
 function addLifeSaver()
-  local lifeSaver = display.newImage("images/ironWall.png", _CENTER_WIDTH, _CENTER_HEIGHT*2-5)
-  physics.addBody(lifeSaver, "static", {bounce = 1.5})
-  transition.to(lifeSaver, { time=10000,alpha= 0, onComplete=killObject })
+  local lifeSaver = display.newImage("images/ironWall.png", _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y*2-1)
+  physics.addBody(lifeSaver, "static", {bounce = 1.5, friction=2})
+  transition.to(lifeSaver, { time=20000,alpha= 0, onComplete=killObject })
 end
 
 function onBounce(event)
@@ -545,8 +602,8 @@ function textBoxScreen(title, message)
 
   -- Display text box with win or lose message
   textBox = display.newImage("images/textBox.png");
-  textBox.x = _CENTER_WIDTH;
-  textBox.y = _CENTER_HEIGHT;
+  textBox.x = _SCREEN_CENTRE_X;
+  textBox.y = _SCREEN_CENTRE_Y;
 
   -- Win or Lose Text
   conditionDisplay = display.newText(title, 0, 0, "Arial", 38);
