@@ -364,7 +364,7 @@ function updateBall()
   end
 end
 
-function ball:normalizeVelocity()
+function normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity()
 
   if thisX >MAX_BALL_VELOCITY then
