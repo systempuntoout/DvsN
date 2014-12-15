@@ -65,7 +65,7 @@ local MONSTER_SPAWN_MIN = 5000
 local MONSTER_SPAWN_MAX = 8000
 local VELOCITY_INCREASE_MIN = 10000
 local VELOCITY_INCREASE_MAX = 15000 
-  
+
 local TIME_LAST_POWERUP = 1000
 local TIME_LAST_MONSTER = 10000
 local TIME_LAST_VELOCITY_INCREASE = 5000
@@ -76,6 +76,15 @@ local paddle
 local ball
 local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
 local current_lives = NUMBER_OF_LIVES
+local titleScreenGroup
+local playBtn
+local soundOptionSprite
+local wallLeft 
+local wallRight 
+local wallTopLeft 
+local wallTopRight 
+local scoreNum
+local liveNum
 
 
 local POWER_UPS = {"r","g","b","P","B","S"}
@@ -85,9 +94,9 @@ if DEBUG then
   local performance = require('performance')
   performance:newPerformanceMeter()
   function checkMemory()
-     collectgarbage( "collect" )
-     local memUsage_str = string.format( "MEMORY = %.3f KB", collectgarbage( "count" ) )
-     print( memUsage_str, "TEXTURE = "..(system.getInfo("textureMemoryUsed") / (1024 * 1024) ) )
+    collectgarbage( "collect" )
+    local memUsage_str = string.format( "MEMORY = %.3f KB", collectgarbage( "count" ) )
+    print( memUsage_str, "TEXTURE = "..(system.getInfo("textureMemoryUsed") / (1024 * 1024) ) )
   end
   timer.performWithDelay( 1000, checkMemory, 0 )
   print("_SCREEN_CENTRE_Y :" .. _SCREEN_CENTRE_Y)
@@ -120,7 +129,7 @@ local soundOptionSequenceData = {
 local myPowerUpImageSheet = graphics.newImageSheet ( "images/powerupspritesheet.png", powerupSheetInfo:getSheet() )
 
 local powerUpSequenceData = {
-    {
+  {
     name="r",                                  -- name of the animation
     sheet=myPowerUpImageSheet,                           -- the image sheet
     start= 1,
@@ -135,7 +144,7 @@ local powerUpSequenceData = {
     count = 8,-- number of frames
     time=1000,                                    -- speed
     loopCount=0                                   -- repeat
-    },
+  },
   {
     name="b",                                  -- name of the animation
     sheet=myPowerUpImageSheet,                           -- the image sheet
@@ -167,8 +176,8 @@ local powerUpSequenceData = {
     count = 8,-- number of frames
     time=1000,                                    -- speed
     loopCount=0                                   -- repeat
-    }
-  
+  }
+
 }
 
 
@@ -191,20 +200,20 @@ function showTitleScreen()
   -- Place all title elements into 1 group
   titleScreenGroup = display.newGroup()	
 
-  titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
+  local titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
   titleScreen.x = _SCREEN_CENTRE_X;
   titleScreen.y = _SCREEN_CENTRE_Y;
 
 
   -- DiegoNik
-  diegoNik = display.newImage("images/diegonik.png")
+  local diegoNik = display.newImage("images/diegonik.png")
   diegoNik.x = _SCREEN_CENTRE_X;
   diegoNik.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2) ;
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
 
   -- Title
-  title = display.newImage("images/gameTitle.png")
+  local title = display.newImage("images/gameTitle.png")
   title.x = _SCREEN_CENTRE_X;
   title.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/10) ;
   title.xScale = 0.5
@@ -256,11 +265,11 @@ function initializeGameScreen()
   local live = display.newImage( "images/live.png" )
   live.y = 10
   live.x = _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)
-  liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 10, "Arial", 14)
+  local liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 10, "Arial", 14)
   liveText:setTextColor(255, 255, 255, 255)
   liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 10, "Arial", 14)
   liveNum:setTextColor(255, 255, 255, 255)
-  
+
 
   --Ball
   ball = display.newImage( "images/ball3.png" )
@@ -271,7 +280,7 @@ function initializeGameScreen()
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
 
   --Score
-  scoreText = display.newText("Punti: ", 22, 10, "Arial", 14)
+  local scoreText = display.newText("Punti: ", 22, 10, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
   scoreNum = display.newText("0", 54, 10, "Arial", 14)
   scoreNum:setTextColor(255, 255, 255, 255)
@@ -341,7 +350,7 @@ function updateBall()
     ball:setLinearVelocity(0)
     return
   end
-  
+
   -- Lost ball
   if ball.y + (ball.height/2) > _SCREEN_CENTRE_Y*2 then
     audio.play(whistleSound)
@@ -397,7 +406,14 @@ function gameplay(event)
   end
   if event.time-TIME_LAST_VELOCITY_INCREASE >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
     TIME_LAST_VELOCITY_INCREASE = event.time
-    increaseVelocityOnBounce = true
+    paddle.trans = transition.blink(paddle,{time=500})
+    local function stopBlink()
+      transition.cancel(paddle.trans)
+      paddle.alpha = 1
+      paddle:setFillColor( 1, 0.5, 0.5 )
+      increaseVelocityOnBounce = true
+    end
+    timer.performWithDelay(500, stopBlink)
   end
 
 
@@ -449,10 +465,22 @@ function spawnMonster()
   if not esisteEnemy then
     enemy.isVisible = true
     enemy.alpha=0.7
+    local easingFunctions = {easing.outInElastic, easing.inElastic, easing.inExpo,easing.inQuad, easing.linear }
     timer.performWithDelay(100, function()
         physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27}) 
-        transition.to(enemy, {alpha=1})  
+        local function randomEnemy()
+          if mRandom(1,10) <= 5 then
+            transition.to(enemy, {time = 5000, 
+                                  alpha=1, 
+                                  y = enemy.y+50, 
+                                  x = enemy.x+ mRandom(-20,20) , 
+                                  transition= easingFunctions[mRandom(1,#easingFunctions)]}) 
+          end
+        end
+        transition.to(enemy, {alpha=1, onComplete = randomEnemy})  
       end)
+
+
     enemy:addEventListener("collision", destroyMonster);
   else
     killObject(enemy)
@@ -468,10 +496,10 @@ function spawnAdditionalBall()
   additionalBall.yScale = 0.7;
   additionalBall.alpha=0.7
   additionalBall.angularDamping = 2;
-    timer.performWithDelay(200, function()
-        physics.addBody( additionalBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 20, filter = {groupIndex = -1} })
-        transition.to(additionalBall, {alpha=1})  
-      end)
+  timer.performWithDelay(200, function()
+      physics.addBody( additionalBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 20, filter = {groupIndex = -1} })
+      transition.to(additionalBall, {alpha=1})  
+    end)
   gameplayItemsGroup:insert(additionalBall)
   gameplayItemsGroup:toFront()
   local function additionalBallGameLogic(event)
@@ -490,15 +518,16 @@ function spawnAdditionalBall()
     end 
     -- Goal
     if additionalBall.height~= nil and additionalBall.y - (additionalBall.height/2) < 0 then
-        goal()
-        killObject(additionalBall)
-        Runtime:removeEventListener("enterFrame", additionalBallGameLogic)      
+      goal()
+      killObject(additionalBall)
+      Runtime:removeEventListener("enterFrame", additionalBallGameLogic)      
     end
     -- Lost
-    if additionalBall.height~= nil and additionalBall.y >=_SCREEN_CENTRE_Y*2+additionalBall.height then
-        Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
+    if additionalBall.height~= nil and additionalBall.y + (additionalBall.height/2) >=_SCREEN_CENTRE_Y*2   then
+      killObject(additionalBall)
+      Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
     end
-    
+
   end
   Runtime:addEventListener("enterFrame", additionalBallGameLogic)
 end
@@ -511,65 +540,65 @@ function updatePaddleBounciness()
 end
 
 function spawnPowerUp()
-    -- create sprite, set animation, play
-    local myPowerUpSprites = display.newSprite( myPowerUpImageSheet, powerUpSequenceData )
-    gameplayItemsGroup:insert(myPowerUpSprites)
-    gameplayItemsGroup:toFront()
-    myPowerUpSprites.x = mRandom(myPowerUpSprites.width,_SCREEN_CENTRE_X*2-myPowerUpSprites.width); myPowerUpSprites.y = myPowerUpSprites.height
-    local power_up = POWER_UPS[mRandom(1,#POWER_UPS)]
-    myPowerUpSprites:setSequence(power_up)
-    myPowerUpSprites:play()
-    myPowerUpSprites.name = "powerUp_" .. power_up; 
-    myPowerUpSprites.alpha=0.7
-    timer.performWithDelay(200, function()
-        transition.to(myPowerUpSprites, { time=5000, 
-                                          y = _SCREEN_CENTRE_Y*2, 
-                                          alpha= 1, 
-                                          onComplete=function()
-                                                      Runtime:removeEventListener("enterFrame", checkLocation)
-                                                      killObject(myPowerUpSprites)
-                                                     end
-                                          })  
-                                 end)
-    local function powerUpGameLogic(event)
-      
-      
-      if myPowerUpSprites ~= nil and myPowerUpSprites.x~=nil  and hasCollidedCircle(myPowerUpSprites,paddle) then
-          if myPowerUpSprites.name == "powerUp_r" then      
-            audio.play(powerUpSound)
-            updatePaddleBounciness()
-            increaseScore(100)
-            inGameText(".Bounce.", TEXT_TYPE.POWERUP, "yellow")
-          elseif myPowerUpSprites.name == "powerUp_g" then
-            audio.play(powerUpSound)
-            increaseScore(1000)
-            inGameText(".1000 Points.", TEXT_TYPE.POWERUP, "skyblue")
-          elseif myPowerUpSprites.name == "powerUp_b" then
-            audio.play(ironWallSound)
-            addLifeSaver()
-            increaseScore(100)
-            inGameText(".Shield.", TEXT_TYPE.POWERUP, "silver")
-          elseif myPowerUpSprites.name == "powerUp_P" then
-            addLive()
-            inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
-          elseif myPowerUpSprites.name == "powerUp_B" then
-            audio.play(powerUpSound)
-            spawnAdditionalBall()
-            increaseScore(100)
-            inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "blue")
-          elseif myPowerUpSprites.name == "powerUp_S" then
-            audio.play(powerUpSound)
-            updateBallVelocity()
-            increaseScore(100)
-            inGameText(".Speed.", TEXT_TYPE.POWERUP, "orange")
+  -- create sprite, set animation, play
+  local myPowerUpSprites = display.newSprite( myPowerUpImageSheet, powerUpSequenceData )
+  gameplayItemsGroup:insert(myPowerUpSprites)
+  gameplayItemsGroup:toFront()
+  myPowerUpSprites.x = mRandom(myPowerUpSprites.width,_SCREEN_CENTRE_X*2-myPowerUpSprites.width); myPowerUpSprites.y = myPowerUpSprites.height
+  local power_up = POWER_UPS[mRandom(1,#POWER_UPS)]
+  myPowerUpSprites:setSequence(power_up)
+  myPowerUpSprites:play()
+  myPowerUpSprites.name = "powerUp_" .. power_up; 
+  myPowerUpSprites.alpha=0.7
+  timer.performWithDelay(200, function()
+      transition.to(myPowerUpSprites, { time=5000, 
+          y = _SCREEN_CENTRE_Y*2, 
+          alpha= 1, 
+          onComplete=function()
+            Runtime:removeEventListener("enterFrame", powerUpGameLogic)
+            killObject(myPowerUpSprites)
           end
+        })  
+    end)
+  local function powerUpGameLogic(event)
 
-          killObject(myPowerUpSprites)
+
+    if myPowerUpSprites ~= nil and myPowerUpSprites.x~=nil  and hasCollidedCircle(myPowerUpSprites,paddle) then
+      if myPowerUpSprites.name == "powerUp_r" then      
+        audio.play(powerUpSound)
+        updatePaddleBounciness()
+        increaseScore(100)
+        inGameText(".Bounce.", TEXT_TYPE.POWERUP, "yellow")
+      elseif myPowerUpSprites.name == "powerUp_g" then
+        audio.play(powerUpSound)
+        increaseScore(1000)
+        inGameText(".1000 Points.", TEXT_TYPE.POWERUP, "skyblue")
+      elseif myPowerUpSprites.name == "powerUp_b" then
+        audio.play(ironWallSound)
+        addLifeSaver()
+        increaseScore(100)
+        inGameText(".Shield.", TEXT_TYPE.POWERUP, "silver")
+      elseif myPowerUpSprites.name == "powerUp_P" then
+        addLive()
+        inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
+      elseif myPowerUpSprites.name == "powerUp_B" then
+        audio.play(powerUpSound)
+        spawnAdditionalBall()
+        increaseScore(100)
+        inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "blue")
+      elseif myPowerUpSprites.name == "powerUp_S" then
+        audio.play(powerUpSound)
+        updateBallVelocity()
+        increaseScore(100)
+        inGameText(".Speed.", TEXT_TYPE.POWERUP, "orange")
       end
-      
+
+      killObject(myPowerUpSprites)
     end
+
+  end
   Runtime:addEventListener("enterFrame", powerUpGameLogic)
-  
+
 end
 
 function destroyMonster(event)
@@ -609,14 +638,15 @@ function onBounce(event)
     audio.play(bounceSound);
     increaseScore(10)
     if increaseVelocityOnBounce then
-       updateBallVelocity()
-       increaseVelocityOnBounce = false
+      updateBallVelocity()
+      paddle:setFillColor( 1, 1, 1 )
+      increaseVelocityOnBounce = false
     end
   end 
 end
 
 function inGameText(text, textType, color)
-  
+
   if textType == TEXT_TYPE.SCORE then
     local points_Text = display.newText(text, 30, 100,native.systemFontBold,25)
     colors.setTextColor(points_Text, 'whitesmoke')
@@ -625,27 +655,27 @@ function inGameText(text, textType, color)
     local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,native.systemFontBold,50)
     colors.setTextColor(powerUp_Text, color)
     transition.to(powerUp_Text,{time = 500, 
-                                x = _SCREEN_CENTRE_X, 
-                                onComplete = function()  
-                                                transition.to(powerUp_Text,{time = 500, 
-                                                                            alpha = 0, 
-                                                                            y = 0, 
-                                                                            onComplete=killObject})
-                                             end})
+        x = _SCREEN_CENTRE_X, 
+        onComplete = function()  
+          transition.to(powerUp_Text,{time = 500, 
+              alpha = 0, 
+              y = 0, 
+              onComplete=killObject})
+        end})
   elseif textType == TEXT_TYPE.GOAL then
     local goal_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),native.systemFontBold,50)
     colors.setTextColor(goal_Text,'yellow')
     transition.to(goal_Text,{time = 1000, 
-                             alpha = 0, 
-                             y = 0, 
-                            onComplete=killObject})
+        alpha = 0, 
+        y = 0, 
+        onComplete=killObject})
   end
-  
+
 end
 
 
 function dragPaddle(event)
-
+  local moveX = 0
   if event.phase == "began" then
     moveX = event.x - paddle.x
   elseif event.phase == "moved" then
@@ -724,9 +754,9 @@ end
 
 function loadGame(event)
 
-    transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
-    playBtn:removeEventListener("tap", loadGame);
-    soundOptionSprite:removeEventListener("tap", soundConfig);
+  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
+  playBtn:removeEventListener("tap", loadGame);
+  soundOptionSprite:removeEventListener("tap", soundConfig);
 
 end
 
