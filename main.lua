@@ -9,14 +9,14 @@ display.setStatusBar(display.HiddenStatusBar);
 
 --Libraries
 
-local utility = require("utility")
-local shake = require "shake"
+local utility = require("lib.utility")
+local shake = require "lib.shake"
 local physics = require("physics")
-local loadsave = require( "loadsave" )
+local loadsave = require( "lib.loadsave" )
 local powerupSheetInfo = require("powerupspritesheet")
 local sheetInfo = require("spritesheet")
 local defaultSettings = require("defaultSettings")
-local colors = require("colors")
+local colors = require("lib.colors")
 
 mRandom = math.random
 
@@ -85,13 +85,15 @@ local wallTopLeft
 local wallTopRight 
 local scoreNum
 local liveNum
+local extraBallCombo = 0 
 
 
 local POWER_UPS = {"r","g","b","P","B","S"}
+--local POWER_UPS = {"B"}
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
-  local performance = require('performance')
+  local performance = require('lib.performance')
   performance:newPerformanceMeter()
   function checkMemory()
     collectgarbage( "collect" )
@@ -311,6 +313,7 @@ function startGame()
 
   score = 0
   current_lives = NUMBER_OF_LIVES
+  extraBallCombo = 0
 
   ball:applyAngularImpulse( mRandom(100, 300) )
   ball.angularDamping = 0.3;
@@ -364,6 +367,7 @@ function updateBall()
         ball:applyAngularImpulse( mRandom(100, 300) )
         paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION   
         scoreNum.text = score;
+        extraBallCombo = 0
         current_lives = current_lives -1
         liveNum.text = current_lives
         gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
@@ -375,7 +379,18 @@ end
 
 function normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity()
-
+  
+  -- try to avoid stuck ball
+  local lastYPositionWithZeroVelocity = 0
+  if  thisY > -10 and thisY < 10 then
+     lastYPositionWithZeroVelocity = ball.y
+     if paddle.y - lastYPositionWithZeroVelocity < 100 then
+      increaseVelocityOnBounce = true 
+    end
+  end
+  
+  
+  -- Avoid speed of light velocity :)
   if thisX >MAX_BALL_VELOCITY then
     thisX = MAX_BALL_VELOCITY
   end
@@ -388,7 +403,7 @@ function normalizeVelocity()
   ball:setLinearVelocity(thisX,thisY )
 
 
-  --Force stuck
+  --In case of stuck, unstuck :)
   if thisX == 0 and thisY == 0 and not (ball.x == _X_BALLSTARTPOSITION and ball.y == _Y_BALLSTARTPOSITION) then
     ball:setLinearVelocity(40, -400 )
   end
@@ -453,8 +468,8 @@ function spawnMonster()
   local enemy = display.newImage("images/enemy.png")
   enemy.name = "Niki"
   enemy.isVisible = false
-  enemy.anchorX = 0
-  enemy.anchorY = 0
+  enemy.xScale = 0.8
+  enemy.yScale = 0.8
   local randomX = mRandom(0, _SCREEN_CENTRE_X*2 - enemy.width)
   local randomY = mRandom(0, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
   enemy.name = "Niki" .. randomX .. "|" .. randomY
@@ -467,7 +482,7 @@ function spawnMonster()
     enemy.alpha=0.7
     local easingFunctions = {easing.outInElastic, easing.inElastic, easing.inExpo,easing.inQuad, easing.linear }
     timer.performWithDelay(100, function()
-        physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27}) 
+        physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 25}) 
         local function randomEnemy()
           if enemy and enemy.y and enemy.x and mRandom(1,10) <= 5 then
             transition.to(enemy, {time = 5000, 
@@ -488,23 +503,23 @@ function spawnMonster()
 end
 
 
-function spawnAdditionalBall()
-  local additionalBall = display.newImage("images/additionalball.png")
-  additionalBall.x = mRandom(additionalBall.width,_SCREEN_CENTRE_X*2-additionalBall.width); additionalBall.y = _SCREEN_CENTRE_Y
-  additionalBall.name = "enemy"; 
-  additionalBall.xScale = 0.8;
-  additionalBall.yScale = 0.8;
-  additionalBall.alpha=0.7
-  additionalBall.angularDamping = 2;
+function spawnExtraBall()
+  local extraBall = display.newImage("images/extraball" .. mRandom(1,3) ..".png")
+  extraBall.x = mRandom(extraBall.width,_SCREEN_CENTRE_X*2-extraBall.width); extraBall.y = _SCREEN_CENTRE_Y
+  extraBall.name = "extraBall"; 
+  extraBall.xScale = 0.8;
+  extraBall.yScale = 0.8;
+  extraBall.alpha=0.7
+  extraBall.angularDamping = 2;
   timer.performWithDelay(200, function()
-      physics.addBody( additionalBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
-      transition.to(additionalBall, {alpha=1})  
+      physics.addBody( extraBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
+      transition.to(extraBall, {alpha=1})  
     end)
-  gameplayItemsGroup:insert(additionalBall)
+  gameplayItemsGroup:insert(extraBall)
   gameplayItemsGroup:toFront()
-  local function additionalBallGameLogic(event)
-    if additionalBall.getLinearVelocity then
-      local vx, vy = additionalBall:getLinearVelocity()
+  local function extraBallGameLogic(event)
+    if extraBall.getLinearVelocity then
+      local vx, vy = extraBall:getLinearVelocity()
       if vx >MAX_BALL_VELOCITY then
         vx = MAX_BALL_VELOCITY
       end
@@ -514,22 +529,23 @@ function spawnAdditionalBall()
       if vy < -MAX_BALL_VELOCITY then
         vy = -MAX_BALL_VELOCITY
       end
-      additionalBall:setLinearVelocity(vx,vy )
+      extraBall:setLinearVelocity(vx,vy )
     end 
     -- Goal
-    if additionalBall.height~= nil and additionalBall.y - (additionalBall.height/2) < 0 then
+    if extraBall.height~= nil and extraBall.y - (extraBall.height/2) < 0 then
       goal()
-      killObject(additionalBall)
-      Runtime:removeEventListener("enterFrame", additionalBallGameLogic)      
+      killObject(extraBall)
+      Runtime:removeEventListener("enterFrame", extraBallGameLogic)  
     end
     -- Lost
-    if additionalBall.height~= nil and additionalBall.y + (additionalBall.height/2) >=_SCREEN_CENTRE_Y*2   then
-      killObject(additionalBall)
-      Runtime:removeEventListener("enterFrame", additionalBallGameLogic)
+    if extraBall.height~= nil and extraBall.y + (extraBall.height/2) >=_SCREEN_CENTRE_Y*2   then
+      killObject(extraBall)
+      Runtime:removeEventListener("enterFrame", extraBallGameLogic)
+      extraBallCombo = 0
     end
 
   end
-  Runtime:addEventListener("enterFrame", additionalBallGameLogic)
+  Runtime:addEventListener("enterFrame", extraBallGameLogic)
 end
 
 function updatePaddleBounciness()
@@ -583,7 +599,7 @@ function spawnPowerUp()
         inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
       elseif myPowerUpSprites.name == "powerUp_B" then
         audio.play(powerUpSound)
-        spawnAdditionalBall()
+        spawnExtraBall()
         increaseScore(100)
         inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "gold")
       elseif myPowerUpSprites.name == "powerUp_S" then
@@ -636,7 +652,15 @@ function onBounce(event)
 
   if event.phase == "began" then
     audio.play(bounceSound);
-    increaseScore(10)
+    
+    if event.other.name == "extraBall" then
+      extraBallCombo = extraBallCombo +1
+      inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.SCORE)
+      score = score + (10 * extraBallCombo)
+    else
+      increaseScore(10)
+    end
+    
     if increaseVelocityOnBounce then
       updateBallVelocity()
       paddle:setFillColor( 1, 1, 1 )
@@ -648,7 +672,9 @@ end
 function inGameText(text, textType, color)
 
   if textType == TEXT_TYPE.SCORE then
-    local points_Text = display.newText(text, 30, 100,native.systemFontBold,25)
+    local points_Text = display.newText(text, 10, 100,native.systemFontBold,25)
+    points_Text.anchorX = 0
+    points_Text.anchorY = 0
     colors.setTextColor(points_Text, 'whitesmoke')
     transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})
   elseif textType == TEXT_TYPE.POWERUP then
