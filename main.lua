@@ -56,7 +56,7 @@ local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 700
 local BALL_VELOCITY_INCREASE = 2
-local SKIP_MAIN_SCREEN = true
+local SKIP_MAIN_SCREEN = false
 
 
 local POWERUP_SPAWN_MIN = 15000
@@ -265,9 +265,9 @@ function initializeGameScreen()
   local live = display.newImage( "images/live.png" )
   live.y = 10
   live.x = _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)
-  local liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 10, "Arial", 14)
+  local liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 11, "Arial", 14)
   liveText:setTextColor(255, 255, 255, 255)
-  liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 10, "Arial", 14)
+  liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 11, "Arial", 14)
   liveNum:setTextColor(255, 255, 255, 255)
 
 
@@ -280,9 +280,9 @@ function initializeGameScreen()
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
 
   --Score
-  local scoreText = display.newText("Punti: ", 22, 10, "Arial", 14)
+  local scoreText = display.newText("Punti: ", 22, 11, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
-  scoreNum = display.newText("0", 54, 10, "Arial", 14)
+  scoreNum = display.newText("0", 54, 11, "Arial", 14)
   scoreNum:setTextColor(255, 255, 255, 255)
 
   --Walls
@@ -492,12 +492,12 @@ function spawnAdditionalBall()
   local additionalBall = display.newImage("images/additionalball.png")
   additionalBall.x = mRandom(additionalBall.width,_SCREEN_CENTRE_X*2-additionalBall.width); additionalBall.y = _SCREEN_CENTRE_Y
   additionalBall.name = "enemy"; 
-  additionalBall.xScale = 0.7;
-  additionalBall.yScale = 0.7;
+  additionalBall.xScale = 0.8;
+  additionalBall.yScale = 0.8;
   additionalBall.alpha=0.7
   additionalBall.angularDamping = 2;
   timer.performWithDelay(200, function()
-      physics.addBody( additionalBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 20, filter = {groupIndex = -1} })
+      physics.addBody( additionalBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
       transition.to(additionalBall, {alpha=1})  
     end)
   gameplayItemsGroup:insert(additionalBall)
@@ -585,7 +585,7 @@ function spawnPowerUp()
         audio.play(powerUpSound)
         spawnAdditionalBall()
         increaseScore(100)
-        inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "blue")
+        inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "gold")
       elseif myPowerUpSprites.name == "powerUp_S" then
         audio.play(powerUpSound)
         updateBallVelocity()
