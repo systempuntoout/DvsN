@@ -469,7 +469,7 @@ function spawnMonster()
     timer.performWithDelay(100, function()
         physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 27}) 
         local function randomEnemy()
-          if mRandom(1,10) <= 5 then
+          if enemy and enemy.y and enemy.x and mRandom(1,10) <= 5 then
             transition.to(enemy, {time = 5000, 
                                   alpha=1, 
                                   y = enemy.y+50, 
