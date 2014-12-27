@@ -33,7 +33,7 @@ physics.start()
 local loadedSettings 
 loadedSettings = loadsave.loadTable( "settings.json")
 if loadedSettings == nil then
-  loadsave.saveTable( DEFAULT_GAME_SETTINGS, "settings.json" )
+  loadsave.saveTable( defaultSettings.DEFAULT_GAME_SETTINGS, "settings.json" )
   loadedSettings = loadsave.loadTable( "settings.json")
 end
 
@@ -66,21 +66,21 @@ local BALL_VELOCITY_INCREASE = 2
 
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
-local MONSTER_SPAWN_MIN = 5000
-local MONSTER_SPAWN_MAX = 8000
+local MONSTER_SPAWN_MIN = 2000
+local MONSTER_SPAWN_MAX = 3000
 local VELOCITY_INCREASE_MIN = 10000
 local VELOCITY_INCREASE_MAX = 15000 
 
 local TIME_LAST_POWERUP = 1000
-local TIME_LAST_MONSTER = 10000
+local TIME_LAST_MONSTER = 1000
 local TIME_LAST_VELOCITY_INCREASE = 5000
 
 local TIME_LAST_FINALBOSS_SHOOT = 5000
-local FINALBOSS_SHOOT_MIN = 1000
-local FINALBOSS_SHOOT_MAX = 2000
+local FINALBOSS_SHOOT_MIN = 5000
+local FINALBOSS_SHOOT_MAX = 10000
 
-local SCORE_FINAL_BOSS_STAGE = 1
-local DELTA_SCORE_FINAL_BOSS_STAGE = 5000
+local SCORE_FINAL_BOSS_STAGE = 10000
+local DELTA_SCORE_FINAL_BOSS_STAGE = 2000
 
 local paddle
 local ball
@@ -92,10 +92,11 @@ local wallLeft
 local wallRight 
 local wallTopLeft 
 local wallTopRight 
-local wallTopCentre
+local wallTopFinalBoss
 local scoreNum
 local liveNum
 local finalBossSprites
+local finalBossEnergyBar
 
 local score 
 local increaseVelocityOnBounce
@@ -245,6 +246,7 @@ local musicBackgroundFinalBoss = audio.loadStream("sounds/backgroundmusicfinalbo
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
 local enemySound = audio.loadSound("sounds/ow.mp3");
+local finalBossSound = audio.loadSound("sounds/owfinalboss.mp3");
 local powerUpSound = audio.loadSound("sounds/powerup.wav");
 local newLiveSound = audio.loadSound("sounds/newLive.wav");
 local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
@@ -350,11 +352,11 @@ function initializeGameScreen()
   wallRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
   wallTopLeft = display.newRect(55, 23, 110, 0)
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
-  
+
   paddle:addEventListener("tap", startGame)
 end
 
-function startGame()
+function startGame(event)
   if backgroundMusicEnabled then
     if audio.isChannelActive(1) then
       audio.setVolume(MASTER_VOLUME +1, {channel = 1})
@@ -370,25 +372,28 @@ function startGame()
   physics.addBody(wallTopLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
   physics.addBody(wallTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
 
-  initializeGameplayVariable()
-
-  ball:applyAngularImpulse( mRandom(100, 300) )
+  initializeGameplayVariable(event)
+  if (mRandom() <0.5) then
+    ball:applyAngularImpulse( mRandom(200, 300) )
+  else
+    ball:applyAngularImpulse( mRandom(-300, -200) )
+  end
   ball.angularDamping = 0.3;
   paddle.isBullet = true;
   paddle:removeEventListener("tap", startGame);
   gameListeners("add");
 end
 
-function initializeGameplayVariable()
+function initializeGameplayVariable(event)
   score = 0
   increaseVelocityOnBounce = false
   current_lives = NUMBER_OF_LIVES
   extraBallCombo = 0 
   finalBossStage = false
-  timeLastPowerup = TIME_LAST_POWERUP 
-  timeLastMonster = TIME_LAST_MONSTER 
-  timeLastVelocityIncrease = TIME_LAST_VELOCITY_INCREASE 
-  timeLastFinalBossShoot = TIME_LAST_FINALBOSS_SHOOT
+  timeLastPowerup = TIME_LAST_POWERUP + event.time
+  timeLastMonster = TIME_LAST_MONSTER + event.time
+  timeLastVelocityIncrease = TIME_LAST_VELOCITY_INCREASE + event.time
+  timeLastFinalBossShoot = TIME_LAST_FINALBOSS_SHOOT + event.time
   scoreFinalBossStage = SCORE_FINAL_BOSS_STAGE
 end
 
@@ -406,15 +411,59 @@ function gameListeners(event)
   end
 end
 
+local function onFinalBossCollision(event)
+  if event.phase == "began" then
+    if event.other.name == "ball" then
+      audio.play(finalBossSound)
+      finalBossSprites:removeEventListener("collision", onFinalBossCollision)
+      timer.performWithDelay(2, function()
+          if finalBossSprites ~= nil then
+            physics.removeBody(finalBossSprites)
+            finalBossSprites.trans = transition.blink(finalBossSprites,{time=500})
+            local function stopBlink()
+              if finalBossSprites ~= nil then
+                transition.cancel(finalBossSprites.trans)
+                finalBossSprites.alpha = 1
+                physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
+                finalBossSprites:addEventListener("collision", onFinalBossCollision)
+              end
+            end
+            timer.performWithDelay(1500, stopBlink)
+          end
+        end
+      )
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - 0.3
+      --wallTopFinalBoss.x = _SCREEN_CENTRE_X
+      if(wallTopFinalBoss.xScale <= 0.2) then
+        killObject(wallTopFinalBoss)
+        gameListenersFinalBoss("remove")
+        increaseScore(1000)
+        killObject(finalBossSprites)
+        finalBossSprites = nil
+        finalBossStage = false
+        audio.fadeOut(1)
+        audio.stop()
+        if backgroundMusicEnabled then
+          audio.play(musicBackground, {channel = 1,loops =- 1});
+        end
+      end
+    end
+  end
+end
+
 function gameListenersFinalBoss(event)
   if event == "add" then
     Runtime:addEventListener( "enterFrame", gameplayFinalBoss )
+    finalBossSprites:addEventListener("collision", onFinalBossCollision)
 
     -- Remove listeners when not needed to free up memory
   elseif event == "remove" then
     Runtime:removeEventListener( "enterFrame", gameplayFinalBoss )
+    finalBossSprites:removeEventListener("collision", onFinalBossCollision)
   end
 end
+
+
 
 function gameLoop(event) 
   updateBall()
@@ -430,26 +479,23 @@ function finalBossShoot()
   physics.addBody(bullet, "dynamic", {density = 1.0, radius = 9, filter = {groupIndex = -1}}) 
   bullet.gravityScale = 0
   bullet:applyForce( (paddle.x - bullet.x)*0.2  , (paddle.y - bullet.y)*0.2 , bullet.x, bullet.y )
-  
+
   local function onBulletCollision(event)
     if event.other.name == "paddle" then
-      increaseScore(100)
       bullet:removeEventListener("collision", onBulletCollision)
       killObject(event.target)
     end
   end
   bullet:addEventListener("collision", onBulletCollision)
-
-  audio.play(pew)
-  
+  --audio.play(pew)
 end
 
 function finalBossMove()
   local moveToX
   local moves = {"left", "right", "front", "back"}
   local randomMove = mRandom(1,#moves)
-  
-  
+
+
   if moves[randomMove] == "left" then
     moveToX = mRandom(finalBossSprites.width /2,finalBossSprites.x)
     moveToY = finalBossSprites.y
@@ -517,17 +563,18 @@ end
 
 function normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity()
-  
+
   -- try to avoid stuck ball
   local lastYPositionWithZeroVelocity = 0
   if  thisY > -10 and thisY < 10 then
-     lastYPositionWithZeroVelocity = ball.y
-     if paddle.y - lastYPositionWithZeroVelocity < 100 then
+    lastYPositionWithZeroVelocity = ball.y
+    if paddle.y - lastYPositionWithZeroVelocity < 100 then
       increaseVelocityOnBounce = true 
+
     end
   end
-  
-  
+
+
   -- Avoid speed of light velocity :)
   if thisX >MAX_BALL_VELOCITY then
     thisX = MAX_BALL_VELOCITY
@@ -548,11 +595,11 @@ function normalizeVelocity()
 end
 
 function gameplay(event)
-  
+
   if reachedFinalBoss() and not gameOver() then
     spawnFinalBoss()
   end
-  
+
   if event.time-timeLastPowerup >= mRandom(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnPowerUp()
     timeLastPowerup = event.time
@@ -583,25 +630,28 @@ function gameplay(event)
       loadedSettings.highScore = score
       loadsave.saveTable( loadedSettings, "settings.json" )
     end 
-
+    if playingFinalBoss() then
+      gameListenersFinalBoss("remove")
+      killObject(finalBossSprites)
+    end 
     textBoxScreen("GAME OVER", "Punti: "..score)
   end    
 
 end
 
 
-function reachedFinalBoss()
-  if  score > scoreFinalBossStage then
-      finalBossStage = true
-      scoreFinalBossStage = scoreFinalBossStage + DELTA_SCORE_FINAL_BOSS_STAGE
-      return true
+function reachedFinalBoss() 
+  if  score > scoreFinalBossStage and not playingFinalBoss() then
+    finalBossStage = true
+    scoreFinalBossStage = scoreFinalBossStage + DELTA_SCORE_FINAL_BOSS_STAGE
+    return true
   else
-     return false
+    return false
   end
 end
 
 function playingFinalBoss()
-   return finalBossStage
+  return finalBossStage
 end
 
 function addLive()
@@ -615,19 +665,27 @@ function gameOver()
 end
 
 function updateBallVelocity()
-  local vx, vy = ball:getLinearVelocity()      
+  local vx, vy = ball:getLinearVelocity()  
+
   ball:setLinearVelocity(vx*BALL_VELOCITY_INCREASE,vy*BALL_VELOCITY_INCREASE)
+  if (ball.x >= _SCREEN_CENTRE_X) then
+    print("right")
+    ball:applyAngularImpulse( mRandom(2500, 2800) )
+  else
+    print("left")
+    ball:applyAngularImpulse( mRandom(-2800, -2500) )
+  end
 end
 
 function spawnMonster()
-  local enemy = display.newImage("images/enemy.png")
-  enemy.name = "Niki"
+  local enemy = display.newImage("images/enemy" .. mRandom(1,6) .. ".png")
+  enemy.name = "Monster"
   enemy.isVisible = false
   enemy.xScale = 0.8
   enemy.yScale = 0.8
-  local randomX = mRandom(0, _SCREEN_CENTRE_X*2 - enemy.width)
-  local randomY = mRandom(0, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
-  enemy.name = "Niki" .. randomX .. "|" .. randomY
+  local randomX = mRandom(enemy.width /2 , _SCREEN_CENTRE_X*2 - enemy.width)
+  local randomY = mRandom(enemy.height /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
+  enemy.name = "Monster" .. randomX .. "|" .. randomY
   enemy.x = randomX
   enemy.y = randomY
 
@@ -641,10 +699,10 @@ function spawnMonster()
         local function randomEnemy()
           if enemy and enemy.y and enemy.x and mRandom(1,10) <= 5 then
             transition.to(enemy, {time = 5000, 
-                                  alpha=1, 
-                                  y = enemy.y+50, 
-                                  x = enemy.x+ mRandom(-20,20) , 
-                                  transition= easingFunctions[mRandom(1,#easingFunctions)]}) 
+                alpha=1, 
+                y = enemy.y+50, 
+                x = enemy.x+ mRandom(-20,20) , 
+                transition= easingFunctions[mRandom(1,#easingFunctions)]}) 
           end
         end
         transition.to(enemy, {alpha=1, onComplete = randomEnemy})  
@@ -707,16 +765,25 @@ function spawnFinalBoss()
   audio.fadeOut(1)
   audio.stop()
   if backgroundMusicEnabled then
-      audio.play(musicBackgroundFinalBoss, {channel = 1,loops =- 1});
+    audio.play(musicBackgroundFinalBoss, {channel = 1,loops =- 1});
   end
-  gameListenersFinalBoss("add");
+
+  --gameplayItemsGroup:insert(finalBossEnergyBar)
+  --gameplayItemsGroup:toFront()
+
   finalBossSprites = display.newSprite( finalBossImageSheet, finalBossSequenceData )
   physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
   finalBossSprites.x = mRandom(finalBossSprites.width,_SCREEN_CENTRE_X*2-finalBossSprites.width); 
   finalBossSprites.y = finalBossSprites.height+20
-  
-  wallTopCentre = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
-  physics.addBody( wallTopCentre, "static", {density = 1.0})
+
+  wallTopFinalBoss = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
+  physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
+
+  --finalBossEnergyBar = display.newRect(_SCREEN_CENTRE_X,13,80,20)
+  --colors.setFillColor(finalBossEnergyBar,"red")
+  --finalBossEnergyBar.alpha = 0.7
+  gameListenersFinalBoss("add");
+
 end
 
 function spawnPowerUp()
@@ -806,7 +873,7 @@ end
 function goal()
   audio.play(goalSound)
   startShake()
-  timer.performWithDelay( 300, stopShake )
+  timer.performWithDelay( 500, stopShake )
   inGameText("GOAL!", TEXT_TYPE.GOAL)
   increaseScore(500)
 end
@@ -820,23 +887,25 @@ end
 
 function onBounce(event)
 
-  if event.phase == "began" then
-    audio.play(bounceSound);
-    
-    if event.other.name == "extraBall" then
-      extraBallCombo = extraBallCombo +1
-      inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.SCORE)
-      score = score + (10 * extraBallCombo)
-    else
-      increaseScore(10)
+  if event.other.name == "ball" or event.other.name == "extraBall" then
+    if event.phase == "began" then
+      audio.play(bounceSound);
+
+      if event.other.name == "extraBall" then
+        extraBallCombo = extraBallCombo +1
+        inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.SCORE)
+        score = score + (10 * extraBallCombo)
+      else
+        increaseScore(10)
+      end
+
+      if increaseVelocityOnBounce and event.other.name == "ball" then
+        updateBallVelocity()
+        paddle:setFillColor( 1, 1, 1 )
+        increaseVelocityOnBounce = false
+      end
     end
-    
-    if increaseVelocityOnBounce then
-      updateBallVelocity()
-      paddle:setFillColor( 1, 1, 1 )
-      increaseVelocityOnBounce = false
-    end
-  end 
+  end
 end
 
 function inGameText(text, textType, color)
