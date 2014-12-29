@@ -5,8 +5,8 @@
 -----------------------------------------------------------------------------------------
 --require('mobdebug').start() 
 
-local DEBUG = false
-local SKIP_MAIN_SCREEN = true
+local DEBUG = true
+local SKIP_MAIN_SCREEN = false
 
 
 display.setStatusBar(display.HiddenStatusBar);
@@ -53,7 +53,7 @@ local _SCREEN_LEFT  = display.screenOriginX
 local _SCREEN_REALHEIGHT  = _SCREEN_HEIGHT / display.contentScaleY
 local _SCREEN_REALWIDTH =  _SCREEN_WIDTH / display.contentScaleX
 
-local TEXT_TYPE = { SCORE = 1 , POWERUP = 2, GOAL = 3, ACHIEVEMENT = 4, FINALBOSS = 5 }
+local TEXT_TYPE = { SCORE = 1 , POWERUP = 2, GOAL = 3, STATIC = 4, FINALBOSS = 5 }
 
 
 local _X_BALLSTARTPOSITION = 160
@@ -64,32 +64,32 @@ local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 700
 local BALL_VELOCITY_INCREASE = 2
-
+local DELTA_SCALE_FINAL_BOSS = 0.1
 
 
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
-local MONSTER_SPAWN_MIN = 2000
-local MONSTER_SPAWN_MAX = 3000
-local BALLOON_SPAWN_MIN = 10000
-local BALLOON_SPAWN_MAX = 15000
-local VELOCITY_INCREASE_MIN = 10000
-local VELOCITY_INCREASE_MAX = 15000 
+local MONSTER_SPAWN_MIN = 5000
+local MONSTER_SPAWN_MAX = 7000
+local BALLOON_SPAWN_MIN = 30000
+local BALLOON_SPAWN_MAX = 35000
+local VELOCITY_INCREASE_MIN = 8000
+local VELOCITY_INCREASE_MAX = 10000 
 
-local TIME_LAST_POWERUP = 1000
-local TIME_LAST_MONSTER = 1000
-local TIME_LAST_BALLOON = 10000
-local TIME_LAST_VELOCITY_INCREASE = 5000
+local TIME_LAST_POWERUP = 10000
+local TIME_LAST_MONSTER = 3000
+local TIME_LAST_BALLOON = 20000
+local TIME_LAST_VELOCITY_INCREASE = 3000
 
-local TIME_LAST_FINALBOSS_SHOOT = 5000
+local TIME_LAST_FINALBOSS_SHOOT = 4000
 local TIME_LAST_FINALBOSS_MOVE = 1000
-local FINALBOSS_SHOOT_MIN = 5000
-local FINALBOSS_SHOOT_MAX = 10000
+local FINALBOSS_SHOOT_MIN = 2000
+local FINALBOSS_SHOOT_MAX = 3000
 local FINALBOSS_MOVE_MIN = 1000
 local FINALBOSS_MOVE_MAX = 2000
 
-local SCORE_FINAL_BOSS_STAGE = 10
-local DELTA_SCORE_FINAL_BOSS_STAGE = 200
+local SCORE_FINAL_BOSS_STAGE = 5000
+local DELTA_SCORE_FINAL_BOSS_STAGE = 10000
 
 local paddle
 local ball
@@ -105,7 +105,6 @@ local wallTopFinalBoss
 local scoreNum
 local liveNum
 local finalBossSprites
-local finalBossEnergyBar
 
 local score 
 local increaseVelocityOnBounce
@@ -273,6 +272,7 @@ local finalBossSequenceData = {
 
 
 --Music
+local musicBackgroundIntro = audio.loadStream("sounds/backgroundmusicintro.mp3");
 local musicBackground = audio.loadStream("sounds/backgroundmusic2.mp3");
 local musicBackgroundFinalBoss = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
@@ -330,11 +330,14 @@ function showTitleScreen()
   soundOptionSprite.yScale = 0.2
 
   if backgroundMusicEnabled then
+    audio.setVolume(MASTER_VOLUME)
     soundOptionSprite:setFrame(2)
   else
+    audio.setVolume(0)
     soundOptionSprite:setFrame(1)
   end
-
+  
+  backgroundMusicChannel = audio.play(musicBackgroundIntro, {loops =- 1});
 
   -- Insert background and button into group
   titleScreenGroup:insert(titleScreen);
@@ -350,7 +353,10 @@ end
 
 -- Set up the game space
 function initializeGameScreen()
-
+  
+  --audio
+  audio.stop(backgroundMusicChannel)
+  
   --Background
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
@@ -387,14 +393,16 @@ function initializeGameScreen()
   wallRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
   wallTopLeft = display.newRect(55, 23, 110, 0)
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
-
+  
+  inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
+  
   paddle:addEventListener("tap", startGame)
 end
 
 function startGame(event)
 
   backgroundMusicChannel = audio.play(musicBackground, {loops =- 1});
-
+  
   paddle.bounciness = 0.1;
   physics.addBody( ball, "dynamic", {density = 1.0, friction = 1, bounce = 1.05, radius = 25, filter = {groupIndex = -1} })
   physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce = paddle.bounciness, radius = 26})
@@ -471,23 +479,20 @@ local function onFinalBossCollision(event)
           end
         end
       )
-      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - 0.3
-      
-      if(wallTopFinalBoss.xScale <= 0.8) then
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - DELTA_SCALE_FINAL_BOSS 
+
+      if(wallTopFinalBoss.xScale <= 0.2) then
         killObject(wallTopFinalBoss)
         gameListenersFinalBoss("remove")
         audio.stop(backgroundMusicChannel)
         increaseScore(1000)
-        inGameText("Level Complete", TEXT_TYPE.ACHIEVEMENT, "white")
+        inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
         killObject(finalBossSprites)
         finalBossSprites = nil
         timer.performWithDelay(4000, function()
             finalBossStage = false
             resetTimers = true
-            if backgroundMusicEnabled then
-              backgroundMusicChannel = audio.play(musicBackground, {loops = -1})
-      
-            end
+            backgroundMusicChannel = audio.play(musicBackground, {loops = -1})
           end)
       end
     end
@@ -530,9 +535,27 @@ function finalBossShoot()
   bullet:applyForce( (paddle.x - bullet.x)*0.2  , (paddle.y - bullet.y)*0.2 , bullet.x, bullet.y )
 
   local function onBulletCollision(event)
-    if event.other.name == "paddle" then
-      bullet:removeEventListener("collision", onBulletCollision)
-      killObject(event.target)
+    if  event.phase == "ended" then
+      if event.other.name == "paddle" then
+        colors.setFillColor( paddle, "green" )
+        bullet:removeEventListener("collision", onBulletCollision)
+        killObject(event.target)
+        Runtime:removeEventListener( "touch", dragPaddle )
+        local function shakePaddle()
+          paddle.x = paddle.x0 + math.random(-2,2) 
+        end
+        timer.performWithDelay(1, function()
+        paddle.x0 = paddle.x
+        Runtime:addEventListener("enterFrame", shakePaddle)
+        end
+        )
+        timer.performWithDelay(1000, function()
+            paddle:setFillColor( 1,1,1)
+            Runtime:addEventListener( "touch", dragPaddle )
+            Runtime:removeEventListener("enterFrame", shakePaddle)
+          end
+        )
+      end  
     end
   end
   bullet:addEventListener("collision", onBulletCollision)
@@ -682,7 +705,7 @@ function gameplay(event)
     killObject(paddle)
     audio.rewind(musicBackground)
     audio.stop(backgroundMusicChannel)
-    audio.play(whistleSound, {channel = 2, loops = 2})
+    audio.play(whistleSound, { loops = 2})
     if score > loadedSettings.highScore then
       loadedSettings.highScore = score
       loadsave.saveTable( loadedSettings, "settings.json" )
@@ -690,6 +713,7 @@ function gameplay(event)
 
     if playingFinalBoss() then
       gameListenersFinalBoss("remove")
+      killObject(wallTopFinalBoss)
       killObject(finalBossSprites)
     end 
     textBoxScreen("GAME OVER", "Punti: "..score)
@@ -907,15 +931,12 @@ function spawnFinalBoss()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
   audio.rewind(musicBackground)
   audio.stop(backgroundMusicChannel)
-
-  if backgroundMusicEnabled then
-    backgroundMusicChannel = audio.play(musicBackgroundFinalBoss, {loops =- 1});
-  end
+  backgroundMusicChannel = audio.play(musicBackgroundFinalBoss, {loops =- 1});
+  
   wallTopFinalBoss = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
-      physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
+  physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
   inGameText("Final Boss",TEXT_TYPE.FINALBOSS,"white")
-  --gameplayItemsGroup:insert(finalBossEnergyBar)
-  --gameplayItemsGroup:toFront()
+
   timer.performWithDelay(2500, function()
       finalBossSprites = display.newSprite( finalBossImageSheet, finalBossSequenceData )
       physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
@@ -1054,7 +1075,7 @@ function onBounce(event)
   end
 end
 
-function inGameText(text, textType, color)
+function inGameText(text, textType, color, size)
 
   if textType == TEXT_TYPE.SCORE then
     local points_Text = display.newText(text, 10, 100,"ComicSansMS-Bold",25)
@@ -1063,7 +1084,7 @@ function inGameText(text, textType, color)
     colors.setTextColor(points_Text, color or 'yellow')
     transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})
   elseif textType == TEXT_TYPE.POWERUP then
-    local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",50)
+    local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 50)
     colors.setTextColor(powerUp_Text, color)
     transition.to(powerUp_Text,{time = 500, 
         x = _SCREEN_CENTRE_X, 
@@ -1074,7 +1095,7 @@ function inGameText(text, textType, color)
               onComplete=killObject})
         end})
   elseif textType == TEXT_TYPE.FINALBOSS then
-    local finalBoss_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",40)
+    local finalBoss_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 40)
     colors.setTextColor(finalBoss_Text, color)
     transition.to(finalBoss_Text,{time = 2000, 
         x = _SCREEN_CENTRE_X, 
@@ -1084,17 +1105,17 @@ function inGameText(text, textType, color)
               y = 0, 
               onComplete=killObject})
         end})
-  elseif textType == TEXT_TYPE.ACHIEVEMENT then
-    local achievement_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",40)
-    colors.setTextColor(achievement_Text, color)
+  elseif textType == TEXT_TYPE.STATIC then
+    local static_text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 40)
+    colors.setTextColor(static_text, color)
 
-    transition.to(achievement_Text,{time = 2000, 
+    transition.to(static_text,{time = 2000, 
         alpha = 0, 
         y = 0, 
         onComplete=killObject})
 
   elseif textType == TEXT_TYPE.GOAL then
-    local goal_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),"ComicSansMS-Bold",50)
+    local goal_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),"ComicSansMS-Bold",size or 50)
     colors.setTextColor(goal_Text, color or 'yellow')
     transition.to(goal_Text,{time = 1000, 
         alpha = 0, 
@@ -1170,10 +1191,12 @@ end
 
 function soundConfig()
   if backgroundMusicEnabled then
+    audio.setVolume(0)
     backgroundMusicEnabled = false
     soundOptionSprite:setFrame(1)
   else
     backgroundMusicEnabled = true
+    audio.setVolume(MASTER_VOLUME)
     soundOptionSprite:setFrame(2)
   end
   loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
