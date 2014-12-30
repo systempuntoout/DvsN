@@ -5,7 +5,7 @@
 -----------------------------------------------------------------------------------------
 --require('mobdebug').start() 
 
-local DEBUG = true
+local DEBUG = false
 local SKIP_MAIN_SCREEN = false
 
 
@@ -286,6 +286,8 @@ local goalSound = audio.loadSound("sounds/goal.mp3");
 local pew = audio.loadSound("sounds/pew.mp3");
 local coin = audio.loadSound("sounds/coin.mp3");
 local balloonPop = audio.loadSound("sounds/balloonPop.mp3");
+local gioca = audio.loadSound("sounds/gioca.mp3");
+local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -485,6 +487,7 @@ local function onFinalBossCollision(event)
         killObject(wallTopFinalBoss)
         gameListenersFinalBoss("remove")
         audio.stop(backgroundMusicChannel)
+        audio.play(finalBossDefeatedSound)
         increaseScore(1000)
         inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
         killObject(finalBossSprites)
@@ -1209,6 +1212,7 @@ end
 function loadGame(event)
 
   transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
+  audio.play(gioca)
   playBtn:removeEventListener("tap", loadGame);
   soundOptionSprite:removeEventListener("tap", soundConfig);
 
