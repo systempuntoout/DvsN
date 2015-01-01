@@ -18,17 +18,22 @@ local shake = require "lib.shake"
 local physics = require("physics")
 local loadsave = require( "lib.loadsave" )
 
-local sheetInfo = require("spritesheet")
+
 local defaultSettings = require("defaultSettings")
 local colors = require("lib.colors")
 
-local powerupSheetInfo = require("powerupspritesheet")
-local finalBossSheetInfo = require("finalbossspritesheet")
-local coinSheetInfo = require("coinspritesheet")
+local sheetConfig = require("spritesheets.spritesheetconfig")
+local powerupSheetConfig  = require("spritesheets.powerupspritesheetconfig")
+local finalBossSheetConfig  = require("spritesheets.finalbossspritesheetconfig")
+local coinSheetConfig = require("spritesheets.coinspritesheetconfig")
+local theKingSheetConfig = require("spritesheets.thekingspritesheetconfig")
+local birdSheetConfig = require("spritesheets.birdspritesheetconfig")
+local diamondSheetConfig = require("spritesheets.diamondspritesheetconfig")
 
 mRandom = math.random
 
 local gameplayItemsGroup = display.newGroup()
+local gameScreenGroup 
 
 physics.start()
 
@@ -53,7 +58,7 @@ local _SCREEN_LEFT  = display.screenOriginX
 local _SCREEN_REALHEIGHT  = _SCREEN_HEIGHT / display.contentScaleY
 local _SCREEN_REALWIDTH =  _SCREEN_WIDTH / display.contentScaleX
 
-local TEXT_TYPE = { SCORE = 1 , POWERUP = 2, GOAL = 3, STATIC = 4, FINALBOSS = 5 }
+local TEXT_TYPE = { SCORE = 1 , POWERUP = 2, GOAL = 3, STATIC = 4, FINALBOSS = 5, COMBO = 6 }
 
 
 local _X_BALLSTARTPOSITION = 160
@@ -64,8 +69,6 @@ local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 700
 local BALL_VELOCITY_INCREASE = 2
-local DELTA_SCALE_FINAL_BOSS = 0.1
-
 
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
@@ -73,12 +76,23 @@ local MONSTER_SPAWN_MIN = 5000
 local MONSTER_SPAWN_MAX = 7000
 local BALLOON_SPAWN_MIN = 30000
 local BALLOON_SPAWN_MAX = 35000
+local BIRD_SPAWN_MIN = 20000 
+local BIRD_SPAWN_MAX = 30000
+local DIAMOND_SPAWN_MIN = 10000 
+local DIAMOND_SPAWN_MAX = 12000
 local VELOCITY_INCREASE_MIN = 8000
 local VELOCITY_INCREASE_MAX = 10000 
+
+local COIN_SPAWN_MIN = 10000 
+local COIN_SPAWN_MAX = 12000
 
 local TIME_LAST_POWERUP = 10000
 local TIME_LAST_MONSTER = 3000
 local TIME_LAST_BALLOON = 20000
+local TIME_LAST_BIRD = 1000
+local TIME_LAST_DIAMOND = 1000
+local TIME_LAST_COIN = 1000
+
 local TIME_LAST_VELOCITY_INCREASE = 3000
 
 local TIME_LAST_FINALBOSS_SHOOT = 4000
@@ -90,6 +104,7 @@ local FINALBOSS_MOVE_MAX = 2000
 
 local SCORE_FINAL_BOSS_STAGE = 5000
 local DELTA_SCORE_FINAL_BOSS_STAGE = 10000
+local DELTA_SCALE_FINAL_BOSS = 0.3
 
 local paddle
 local ball
@@ -118,8 +133,14 @@ local timeLastFinalBossShoot
 local scoreFinalBossStage
 local ballStuck
 local POWER_UPS = {"r","g","b","P","B","S"}
+--local POWER_UPS = {"B","B","B","B","B","B"}
 local resetTimers
 local backgroundMusicChannel
+local theKingSprites
+local timeLastBalloon
+local timeLastBird
+local timeLastDiamond
+local timeLastCoin
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -152,124 +173,6 @@ if DEBUG then
 end
 
 
--- Sheets
-local myImageSheet = graphics.newImageSheet ( "images/spritesheet.png", sheetInfo:getSheet() )
-
--- Background sound
-local soundOptionSequenceData = {
-  {
-    name="soundOption",                                  
-    sheet=myImageSheet,                          
-    frames= { 1, 2 }
-  }
-}
-
--- Sheets
-local myCoinImageSheet = graphics.newImageSheet ( "images/coinspritesheet.png", coinSheetInfo:getSheet() )
-
--- Background sound
-local coinSequenceData = {
-  {
-    name="coin",                                  
-    sheet=myCoinSheet,
-    frames= { 1, 3,4,5,6,7,8,9,10,2 },
-    time=1500
-  }
-}
-
--- Sheets
-local myPowerUpImageSheet = graphics.newImageSheet ( "images/powerupspritesheet.png", powerupSheetInfo:getSheet() )
-
-local powerUpSequenceData = {
-  {
-    name="r",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 1,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="g",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 9,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="b",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 17,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="P",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 25,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="B",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 33,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="S",                                  -- name of the animation
-    sheet=myPowerUpImageSheet,                           -- the image sheet
-    start= 41,
-    count = 8,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  }
-
-}
-
--- Final boos sheet
-local finalBossImageSheet = graphics.newImageSheet ( "images/finalbossspritesheet.png", finalBossSheetInfo:getSheet() )
-
-local finalBossSequenceData = {
-  {
-    name="front",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 1,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="right",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 5,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="back",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 9,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="left",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 13,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  }
-}
-
 
 --Music
 local musicBackgroundIntro = audio.loadStream("sounds/backgroundmusicintro.mp3");
@@ -277,8 +180,10 @@ local musicBackground = audio.loadStream("sounds/backgroundmusic2.mp3");
 local musicBackgroundFinalBoss = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
+local whistle2Sound = audio.loadSound("sounds/whistle2.mp3");
 local enemySound = audio.loadSound("sounds/ow.mp3");
 local finalBossSound = audio.loadSound("sounds/owfinalboss.mp3");
+local finalBoss2Sound = audio.loadSound("sounds/ow2finalboss.mp3");
 local powerUpSound = audio.loadSound("sounds/powerup.wav");
 local newLiveSound = audio.loadSound("sounds/newLive.wav");
 local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
@@ -286,8 +191,11 @@ local goalSound = audio.loadSound("sounds/goal.mp3");
 local pew = audio.loadSound("sounds/pew.mp3");
 local coin = audio.loadSound("sounds/coin.mp3");
 local balloonPop = audio.loadSound("sounds/balloonPop.mp3");
+local birdSqueek = audio.loadSound("sounds/balloonPop.mp3");
 local gioca = audio.loadSound("sounds/gioca.mp3");
 local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
+local miss1Sound = audio.loadSound("sounds/miss.mp3");
+local miss2Sound = audio.loadSound("sounds/miss2.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -317,13 +225,13 @@ function showTitleScreen()
   title.yScale = 0.5
 
   -- Display play button image
-  playBtn = display.newImage("images/giocaButton.png")
+  playBtn = display.newImage("images/giocaButton3.png")
   playBtn.x = _SCREEN_CENTRE_X;
   playBtn.y = _SCREEN_CENTRE_Y+(_SCREEN_CENTRE_Y/2) ;
   playBtn.name = "playbutton";
-
+  
   --Sound option
-  soundOptionSprite = display.newSprite( myImageSheet, soundOptionSequenceData )
+  soundOptionSprite = display.newSprite( sheetConfig.myImageSheet, sheetConfig.soundOptionSequenceData )
   soundOptionSprite.anchorX = 0
   soundOptionSprite.anchorY = 1
   soundOptionSprite.x = 2;
@@ -338,7 +246,7 @@ function showTitleScreen()
     audio.setVolume(0)
     soundOptionSprite:setFrame(1)
   end
-  
+
   backgroundMusicChannel = audio.play(musicBackgroundIntro, {loops =- 1});
 
   -- Insert background and button into group
@@ -355,15 +263,39 @@ end
 
 -- Set up the game space
 function initializeGameScreen()
-  
+
   --audio
   audio.stop(backgroundMusicChannel)
-  
+
   --Background
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
-  background.y = _SCREEN_CENTRE_Y
-
+  background.y = _SCREEN_CENTRE_Y  
+  
+  --GamescreenGroups
+  if (gameScreenGroup ~= nil) then
+    gameScreenGroup:removeSelf()
+  end
+  gameScreenGroup = display.newGroup()
+  
+  gameScreenGroup:insert(background)
+  
+  -- The king
+  theKingSprites = display.newSprite( theKingSheetConfig.theKingImageSheet, theKingSheetConfig.theKingSequenceData )
+  theKingSprites.x = _SCREEN_CENTRE_X
+  theKingSprites.y = _SCREEN_CENTRE_Y
+  gameScreenGroup:insert(theKingSprites)
+  theKingSprites.isVisible = false
+  theKingSprites.xScale = 2
+  theKingSprites.yScale = 2
+  local function spriteListener( event )
+    if event.phase == "ended" then
+      transition.to(theKingSprites,{time = 500, alpha = 0})
+    end
+  end
+  theKingSprites:addEventListener( "sprite", spriteListener )
+  gameScreenGroup:toFront()
+  
   --lives
   local live = display.newImage( "images/live.png" )
   live.y = 10
@@ -395,16 +327,16 @@ function initializeGameScreen()
   wallRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
   wallTopLeft = display.newRect(55, 23, 110, 0)
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
-  
+
   inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
-  
+
   paddle:addEventListener("tap", startGame)
 end
 
 function startGame(event)
 
   backgroundMusicChannel = audio.play(musicBackground, {loops =- 1});
-  
+
   paddle.bounciness = 0.1;
   physics.addBody( ball, "dynamic", {density = 1.0, friction = 1, bounce = 1.05, radius = 25, filter = {groupIndex = -1} })
   physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce = paddle.bounciness, radius = 26})
@@ -444,6 +376,9 @@ function initializeTimers(event)
   timeLastFinalBossShoot = TIME_LAST_FINALBOSS_SHOOT + event.time
   timeLastFinalBossMove = TIME_LAST_FINALBOSS_MOVE + event.time
   timeLastBalloon = TIME_LAST_BALLOON + event.time
+  timeLastBird = TIME_LAST_BIRD + event.time
+  timeLastDiamond = TIME_LAST_DIAMOND + event.time
+  timeLastCoin = TIME_LAST_COIN + event.time
 end
 
 function gameListeners(event)
@@ -451,12 +386,16 @@ function gameListeners(event)
     Runtime:addEventListener( "touch", dragPaddle )
     Runtime:addEventListener( "enterFrame", gameLoop )
     paddle:addEventListener("collision", onBounce);
+    wallTopRight:addEventListener("collision", onTopWallCollision);
+    wallTopLeft:addEventListener("collision", onTopWallCollision);
 
     -- Remove listeners when not needed to free up memory
   elseif event == "remove" then
     Runtime:removeEventListener( "enterFrame", gameLoop )
     Runtime:removeEventListener( "touch", dragPaddle )
     paddle:removeEventListener("collision", onBounce);
+    wallTopRight:removeEventListener("collision", onTopWallCollision);
+    wallTopLeft:removeEventListener("collision", onTopWallCollision);
   end
 end
 
@@ -465,8 +404,8 @@ local function onFinalBossCollision(event)
     if event.other.name == "ball" then
       audio.play(finalBossSound)
       finalBossSprites:removeEventListener("collision", onFinalBossCollision)
-      timer.performWithDelay(2, function()
-          if finalBossSprites ~= nil then
+      timer.performWithDelay(1, function()
+          if finalBossSprites ~= nil and finalBossSprites.name then
             physics.removeBody(finalBossSprites)
             finalBossSprites.trans = transition.blink(finalBossSprites,{time=500})
             local function stopBlink()
@@ -484,6 +423,8 @@ local function onFinalBossCollision(event)
       wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - DELTA_SCALE_FINAL_BOSS 
 
       if(wallTopFinalBoss.xScale <= 0.2) then
+        audio.play(finalBoss2Sound)
+        theKing("dance")
         killObject(wallTopFinalBoss)
         gameListenersFinalBoss("remove")
         audio.stop(backgroundMusicChannel)
@@ -506,9 +447,13 @@ function gameListenersFinalBoss(event)
   if event == "add" then
     Runtime:addEventListener( "enterFrame", gameplayFinalBoss )
     finalBossSprites:addEventListener("collision", onFinalBossCollision)
+    wallTopRight:removeEventListener("collision", onTopWallCollision);
+    wallTopLeft:removeEventListener("collision", onTopWallCollision);
 
     -- Remove listeners when not needed to free up memory
   elseif event == "remove" then
+    wallTopRight:addEventListener("collision", onTopWallCollision);
+    wallTopLeft:addEventListener("collision", onTopWallCollision);
     Runtime:removeEventListener( "enterFrame", gameplayFinalBoss )
     if (finalBossSprites~= nil and finalBossSprites.name) then
       finalBossSprites:removeEventListener("collision", onFinalBossCollision)
@@ -529,71 +474,71 @@ function gameLoop(event)
 end
 
 
-function finalBossShoot()
-  local bullet = display.newImage("images/bullet.png") 
-  bullet.x = finalBossSprites.x
-  bullet.y = finalBossSprites.y+ (finalBossSprites.height/2)
-  physics.addBody(bullet, "dynamic", {density = 1.0, radius = 9, filter = {groupIndex = -1}}) 
-  bullet.gravityScale = 0
-  bullet:applyForce( (paddle.x - bullet.x)*0.2  , (paddle.y - bullet.y)*0.2 , bullet.x, bullet.y )
-
-  local function onBulletCollision(event)
-    if  event.phase == "ended" then
-      if event.other.name == "paddle" then
-        colors.setFillColor( paddle, "green" )
-        bullet:removeEventListener("collision", onBulletCollision)
-        killObject(event.target)
-        Runtime:removeEventListener( "touch", dragPaddle )
-        local function shakePaddle()
-          paddle.x = paddle.x0 + math.random(-2,2) 
-        end
-        timer.performWithDelay(1, function()
-        paddle.x0 = paddle.x
-        Runtime:addEventListener("enterFrame", shakePaddle)
-        end
-        )
-        timer.performWithDelay(1000, function()
-            paddle:setFillColor( 1,1,1)
-            Runtime:addEventListener( "touch", dragPaddle )
-            Runtime:removeEventListener("enterFrame", shakePaddle)
-          end
-        )
-      end  
-    end
-  end
-  bullet:addEventListener("collision", onBulletCollision)
-  audio.play(pew)
-end
-
-function finalBossMove()
-  local moveToX
-  local moves = {"left", "right", "front", "back"}
-  local randomMove = mRandom(1,#moves)
-
-
-  if moves[randomMove] == "left" then
-    moveToX = mRandom(finalBossSprites.width /2,finalBossSprites.x)
-    moveToY = finalBossSprites.y
-  end
-  if moves[randomMove] == "right" then
-    moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.width /2))
-    moveToY = finalBossSprites.y
-  end
-  if moves[randomMove] == "front" then
-    moveToX = finalBossSprites.x
-    moveToY = mRandom(finalBossSprites.y, _SCREEN_CENTRE_Y)
-  end
-  if moves[randomMove] == "back" then
-    moveToX = finalBossSprites.x
-    moveToY = mRandom(finalBossSprites.height +20, finalBossSprites.y)
-  end
-  finalBossSprites:setSequence(moves[randomMove])
-  finalBossSprites:play()
-  transition.to(finalBossSprites, {time = 1000, x = moveToX, y = moveToY}) 
-end
-
-
 function gameplayFinalBoss(event) 
+  local function finalBossMove()
+    local moveToX
+    local moves = {"left", "right", "front", "back"}
+    local randomMove = mRandom(1,#moves)
+
+
+    if moves[randomMove] == "left" then
+      moveToX = mRandom(finalBossSprites.width /2,finalBossSprites.x)
+      moveToY = finalBossSprites.y
+    end
+    if moves[randomMove] == "right" then
+      moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.width /2))
+      moveToY = finalBossSprites.y
+    end
+    if moves[randomMove] == "front" then
+      moveToX = finalBossSprites.x
+      moveToY = mRandom(finalBossSprites.y, _SCREEN_CENTRE_Y)
+    end
+    if moves[randomMove] == "back" then
+      moveToX = finalBossSprites.x
+      moveToY = mRandom(finalBossSprites.height +20, finalBossSprites.y)
+    end
+    finalBossSprites:setSequence(moves[randomMove])
+    finalBossSprites:play()
+    transition.to(finalBossSprites, {time = 1000, x = moveToX, y = moveToY}) 
+  end
+
+  local function finalBossShoot()
+    local bullet = display.newImage("images/bullet.png") 
+    bullet.x = finalBossSprites.x
+    bullet.y = finalBossSprites.y+ (finalBossSprites.height/2)
+    physics.addBody(bullet, "dynamic", {density = 1.0, radius = 9, filter = {groupIndex = -1}}) 
+    bullet.gravityScale = 0
+    bullet:applyForce( (paddle.x - bullet.x)*0.2  , (paddle.y - bullet.y)*0.2 , bullet.x, bullet.y )
+
+    local function onBulletCollision(event)
+      if  event.phase == "ended" then
+        if event.other.name == "paddle" then
+          colors.setFillColor( paddle, "green" )
+          bullet:removeEventListener("collision", onBulletCollision)
+          killObject(event.target)
+          Runtime:removeEventListener( "touch", dragPaddle )
+          local function shakePaddle()
+            paddle.x = paddle.x0 + math.random(-2,2) 
+          end
+          timer.performWithDelay(1, function()
+              paddle.x0 = paddle.x
+              Runtime:addEventListener("enterFrame", shakePaddle)
+            end
+          )
+          timer.performWithDelay(1000, function()
+              if paddle and paddle.name then
+                paddle:setFillColor( 1,1,1)
+                Runtime:addEventListener( "touch", dragPaddle )
+                Runtime:removeEventListener("enterFrame", shakePaddle)
+              end
+            end
+          )
+        end  
+      end
+    end
+    bullet:addEventListener("collision", onBulletCollision)
+    audio.play(pew)
+  end
   if event.time- timeLastFinalBossShoot >= mRandom(FINALBOSS_SHOOT_MIN, FINALBOSS_SHOOT_MAX) and not gameOver() then
     timeLastFinalBossShoot = event.time
     finalBossShoot()
@@ -619,6 +564,7 @@ function updateBall()
   -- Lost ball
   if ball.y + (ball.height/2) > _SCREEN_CENTRE_Y*2 then
     audio.play(whistleSound)
+    theKing("serious")
     ball.isVisible = false;
     Runtime:removeEventListener( "enterFrame", gameLoop )
     local tm = timer.performWithDelay( 1000, function() 
@@ -683,12 +629,23 @@ function gameplay(event)
   end
   if event.time-timeLastMonster >= mRandom(MONSTER_SPAWN_MIN, MONSTER_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnMonster()
-    spawnCoin()
     timeLastMonster = event.time
   end
   if event.time-timeLastBalloon >= mRandom(BALLOON_SPAWN_MIN, BALLOON_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnBalloon()
     timeLastBalloon = event.time
+  end
+  if event.time-timeLastBird >= mRandom(BIRD_SPAWN_MIN, BIRD_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnBird()
+    timeLastBird = event.time
+  end
+  if event.time-timeLastDiamond >= mRandom(DIAMOND_SPAWN_MIN, DIAMOND_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnDiamond()
+    timeLastDiamond = event.time
+  end
+  if event.time-timeLastCoin >= mRandom(COIN_SPAWN_MIN, COIN_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnCoin()
+    timeLastCoin = event.time
   end
   if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
     timeLastVelocityIncrease = event.time
@@ -708,7 +665,7 @@ function gameplay(event)
     killObject(paddle)
     audio.rewind(musicBackground)
     audio.stop(backgroundMusicChannel)
-    audio.play(whistleSound, { loops = 2})
+    audio.play(whistle2Sound)
     if score > loadedSettings.highScore then
       loadedSettings.highScore = score
       loadsave.saveTable( loadedSettings, "settings.json" )
@@ -763,6 +720,18 @@ function unstuckBall()
   ballStuck = false
 end
 
+function theKing(sequence)
+    local lock = false
+    if not lock then
+      lock = true
+      theKingSprites.alpha = 0.3
+      theKingSprites:toFront()
+      theKingSprites.isVisible = true
+      theKingSprites:setSequence(sequence)
+      theKingSprites:play()
+      lock = false
+    end  
+end
 
 function spawnMonster()
   local enemy = display.newImage("images/enemy" .. mRandom(1,6) .. ".png")
@@ -804,8 +773,46 @@ function spawnMonster()
   end
 end
 
+function spawnDiamond(x,y,bypassQuery)
+  local myDiamondSprites = display.newSprite( diamondSheetConfig.myDiamondImageSheet, diamondSheetConfig.diamondSequenceData )
+  physics.addBody( myDiamondSprites, "static", {density = 1, radius = 15, isSensor = true})
+  myDiamondSprites.name = "diamond"
+  myDiamondSprites.isVisible = false
+  --myDiamondSprites.xScale = 0.07;
+  --myDiamondSprites.yScale = 0.07;
+  local randomX = x or mRandom(myDiamondSprites.contentWidth /2 , _SCREEN_CENTRE_X*2 - myDiamondSprites.contentWidth)
+  local randomY = y or mRandom(myDiamondSprites.contentHeight /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
+  local esisteDiamond = physics.queryRegion( randomX, randomY, randomX+myDiamondSprites.contentWidth, randomY+myDiamondSprites.contentHeight )
+
+  if (not esisteDiamond) or bypassQuery then
+    myDiamondSprites.isVisible = true
+    gameplayItemsGroup:insert(myDiamondSprites)
+    gameplayItemsGroup:toFront()
+    myDiamondSprites.x = randomX
+    myDiamondSprites.y = randomY
+    myDiamondSprites:setSequence("diamond"..mRandom(8))
+    myDiamondSprites:play()
+
+    local function onDiamondCollision(event)
+      if event.phase == "began" then
+        if event.other.name == "ball" then
+          audio.play(coin)
+          increaseScore(50)
+          killObject(myDiamondSprites)
+          myDiamondSprites = nil
+        end
+      end
+    end
+    myDiamondSprites:addEventListener("collision", onDiamondCollision);
+  else
+    killObject(myDiamondSprites)
+    myDiamondSprites = nil
+  end
+end
+
+
 function spawnCoin(x,y,bypassQuery)
-  local myCoinSprites = display.newSprite( myCoinImageSheet, coinSequenceData )
+  local myCoinSprites = display.newSprite( coinSheetConfig.myCoinImageSheet, coinSheetConfig.coinSequenceData )
   physics.addBody( myCoinSprites, "static", {density = 1, radius = 15, isSensor = true})
   myCoinSprites.name = "coin"
   myCoinSprites.isVisible = false
@@ -829,7 +836,6 @@ function spawnCoin(x,y,bypassQuery)
         if event.other.name == "ball" then
           audio.play(coin)
           increaseScore(50)
-          myCoinSprites:removeEventListener("collision", onCoinCollision);
           killObject(myCoinSprites)
           myCoinSprites = nil
         end
@@ -842,6 +848,15 @@ function spawnCoin(x,y,bypassQuery)
   end
 end
 
+function spawnMultiDiamonds()
+  gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  for y=1,7 do
+    for x = 1, 7 do
+      spawnDiamond(40*x+5,40*y+5,true)
+    end
+  end
+end 
+
 function spawnMultiCoins()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
   for y=1,7 do
@@ -850,6 +865,29 @@ function spawnMultiCoins()
     end
   end
 end 
+function spawnBird()
+  local birdSprites = display.newSprite( birdSheetConfig.myBirdImageSheet, birdSheetConfig.birdSequenceData )
+  birdSprites.name = "bird"
+  
+  local function onBirdTouch(event)
+    if event.phase == "began" then
+      spawnMultiDiamonds()
+      killObject(event.target)
+      event.target = nil
+    end
+  end
+  
+  birdSprites.x = -birdSprites.contentWidth
+  birdSprites.y = mRandom(_SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),_SCREEN_CENTRE_Y)
+  birdSprites.xScale = 0.3
+  birdSprites.yScale = 0.3
+  gameplayItemsGroup:insert(birdSprites)
+  gameplayItemsGroup:toFront()
+  birdSprites:setSequence("fly")
+  birdSprites:play()
+  transition.to(birdSprites, {time = 4000, x = _SCREEN_CENTRE_X*2+birdSprites.contentWidth, onComplete = killObject})
+  birdSprites:addEventListener("touch", onBirdTouch)
+end
 
 function spawnBalloon()
   local balloon = display.newImageRect( "images/balloon.png",40,40 )
@@ -861,13 +899,14 @@ function spawnBalloon()
   balloon.x =  mRandom(balloon.contentWidth, _SCREEN_CENTRE_X*2 - balloon.contentWidth)
   balloon.y = _SCREEN_CENTRE_Y + (_SCREEN_CENTRE_Y/2)
   local function onBalloonTouch(event)
-    audio.play(balloonPop)
-    increaseScore(100)
-    spawnMultiCoins()
-    balloon:removeEventListener("touch", onBalloonTouch)
-    Runtime:removeEventListener("enterFrame", balloonGameLogic)
-    killObject(balloon)
-    balloon = nil
+    if event.phase == "began" then
+      audio.play(balloonPop)
+      increaseScore(100)
+      spawnMultiCoins()
+      Runtime:removeEventListener("enterFrame", balloonGameLogic)
+      killObject(balloon)
+      balloon = nil
+    end
   end
   local function balloonGameLogic(event)
     if balloon ~= nil then
@@ -935,13 +974,13 @@ function spawnFinalBoss()
   audio.rewind(musicBackground)
   audio.stop(backgroundMusicChannel)
   backgroundMusicChannel = audio.play(musicBackgroundFinalBoss, {loops =- 1});
-  
+
   wallTopFinalBoss = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
   physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
   inGameText("Final Boss",TEXT_TYPE.FINALBOSS,"white")
 
   timer.performWithDelay(2500, function()
-      finalBossSprites = display.newSprite( finalBossImageSheet, finalBossSequenceData )
+      finalBossSprites = display.newSprite( finalBossSheetConfig.finalBossImageSheet, finalBossSheetConfig.finalBossSequenceData )
       physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
       finalBossSprites.x = mRandom(finalBossSprites.width,_SCREEN_CENTRE_X*2-finalBossSprites.width); 
       finalBossSprites.y = finalBossSprites.height+20
@@ -953,7 +992,7 @@ end
 
 function spawnPowerUp()
   -- create sprite, set animation, play
-  local myPowerUpSprites = display.newSprite( myPowerUpImageSheet, powerUpSequenceData )
+  local myPowerUpSprites = display.newSprite( powerupSheetConfig.myPowerUpImageSheet, powerupSheetConfig.powerUpSequenceData )
   gameplayItemsGroup:insert(myPowerUpSprites)
   gameplayItemsGroup:toFront()
   myPowerUpSprites.x = mRandom(myPowerUpSprites.width,_SCREEN_CENTRE_X*2-myPowerUpSprites.width); myPowerUpSprites.y = myPowerUpSprites.height
@@ -991,6 +1030,7 @@ function spawnPowerUp()
         increaseScore(100)
         inGameText(".Shield.", TEXT_TYPE.POWERUP, "silver")
       elseif myPowerUpSprites.name == "powerUp_P" then
+        theKing("laugh")
         addLive()
         inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
       elseif myPowerUpSprites.name == "powerUp_B" then
@@ -1039,6 +1079,7 @@ end
 
 function goal()
   audio.play(goalSound)
+  theKing("yes")
   startShake()
   timer.performWithDelay( 500, stopShake )
   inGameText("GOAL!", TEXT_TYPE.GOAL)
@@ -1052,6 +1093,20 @@ function updatePaddleBounciness()
   physics.addBody( paddle, "static", {density = 1.0, friction = 1, bounce =  paddle.bounciness, radius = 26})
 end
 
+
+function onTopWallCollision(event)
+  if event.other.name == "ball" or event.other.name == "extraBall" then
+    if event.phase == "began" then
+      ran = mRandom(3) 
+      if ran == 1 then
+        audio.play(miss1Sound);
+      elseif ran == 2 then
+        audio.play(miss2Sound);
+      end
+    end
+  end
+end
+
 function onBounce(event)
 
   if event.other.name == "ball" or event.other.name == "extraBall" then
@@ -1060,8 +1115,8 @@ function onBounce(event)
 
       if event.other.name == "extraBall" then
         extraBallCombo = extraBallCombo +1
-        inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.SCORE)
-        score = score + (10 * extraBallCombo)
+        inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.COMBO)
+        score = score + (30 * extraBallCombo)
       else
         increaseScore(10)
       end
@@ -1086,6 +1141,12 @@ function inGameText(text, textType, color, size)
     points_Text.anchorY = 0
     colors.setTextColor(points_Text, color or 'yellow')
     transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})
+  elseif textType == TEXT_TYPE.COMBO then
+    local points_Text = display.newText(text, 190, 100,"ComicSansMS-Bold",25)
+    points_Text.anchorX = 0
+    points_Text.anchorY = 0
+    colors.setTextColor(points_Text, color or 'silver')
+    transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})  
   elseif textType == TEXT_TYPE.POWERUP then
     local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 50)
     colors.setTextColor(powerUp_Text, color)
