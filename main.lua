@@ -75,10 +75,10 @@ local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
 local MONSTER_SPAWN_MIN = 5000
 local MONSTER_SPAWN_MAX = 7000
-local BALLOON_SPAWN_MIN = 30000
+local BALLOON_SPAWN_MIN = 20000
 local BALLOON_SPAWN_MAX = 35000
 local BIRD_SPAWN_MIN = 20000 
-local BIRD_SPAWN_MAX = 30000
+local BIRD_SPAWN_MAX = 35000
 local DIAMOND_SPAWN_MIN = 10000 
 local DIAMOND_SPAWN_MAX = 12000
 local VELOCITY_INCREASE_MIN = 8000
@@ -178,7 +178,7 @@ end
 
 --Music
 local backgroundIntroMusic = audio.loadStream("sounds/backgroundmusicintro.mp3");
-local backgroundMusic = audio.loadStream("sounds/backgroundmusic2.mp3");
+local backgroundMusic = audio.loadStream("sounds/backgroundmusic3.mp3");
 local backgroundFinalBossMusic = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
@@ -424,7 +424,7 @@ local function onFinalBossCollision(event)
           end
         end
       )
-      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (DELTA_SCALE_FINAL_BOSS / (level))
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (DELTA_SCALE_FINAL_BOSS / (level+1))
       if(wallTopFinalBoss.xScale <= 0.2) then
         level = level+1
         audio.play(finalBoss2Sound)
@@ -596,7 +596,8 @@ function normalizeVelocity()
   local lastYPositionWithZeroVelocity = 0
   if  thisY > -10 and thisY < 10 then
     lastYPositionWithZeroVelocity = ball.y
-    if paddle.y - lastYPositionWithZeroVelocity < 100 then
+    if (paddle.y - lastYPositionWithZeroVelocity < 200) and (paddle.x==paddle.contentWidth/2 or paddle.x==_SCREEN_CENTRE_X*2 - paddle.contentWidth/2)  then
+      print("unstuck")
       ballStuck = true
     end
   end
@@ -638,10 +639,12 @@ function gameplay(event)
   if event.time-timeLastBalloon >= mRandom(BALLOON_SPAWN_MIN, BALLOON_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnBalloon()
     timeLastBalloon = event.time
+    timeLastBird = event.time
   end
   if event.time-timeLastBird >= mRandom(BIRD_SPAWN_MIN, BIRD_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnBird()
     timeLastBird = event.time
+    timeLastBalloon = event.time
   end
   if event.time-timeLastDiamond >= mRandom(DIAMOND_SPAWN_MIN, DIAMOND_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnDiamond()
