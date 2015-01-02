@@ -24,7 +24,8 @@ local colors = require("lib.colors")
 
 local sheetConfig = require("spritesheets.spritesheetconfig")
 local powerupSheetConfig  = require("spritesheets.powerupspritesheetconfig")
-local finalBossSheetConfig  = require("spritesheets.finalbossspritesheetconfig")
+local finalBoss1SheetConfig  = require("spritesheets.finalbossspritesheetconfig")
+local finalBoss2SheetConfig  = require("spritesheets.finalboss2spritesheetconfig")
 local coinSheetConfig = require("spritesheets.coinspritesheetconfig")
 local theKingSheetConfig = require("spritesheets.thekingspritesheetconfig")
 local birdSheetConfig = require("spritesheets.birdspritesheetconfig")
@@ -67,7 +68,7 @@ local _X_PADDLESTARTPOSITION = 160
 local _Y_PADDLESTARTPOSITION = 440
 local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
-local MAX_BALL_VELOCITY = 700
+local MAX_BALL_VELOCITY = 500
 local BALL_VELOCITY_INCREASE = 2
 
 local POWERUP_SPAWN_MIN = 15000
@@ -102,7 +103,7 @@ local FINALBOSS_SHOOT_MAX = 3000
 local FINALBOSS_MOVE_MIN = 1000
 local FINALBOSS_MOVE_MAX = 2000
 
-local SCORE_FINAL_BOSS_STAGE = 5000
+local SCORE_FINAL_BOSS_STAGE = 10000
 local DELTA_SCORE_FINAL_BOSS_STAGE = 10000
 local DELTA_SCALE_FINAL_BOSS = 0.3
 
@@ -141,6 +142,7 @@ local timeLastBalloon
 local timeLastBird
 local timeLastDiamond
 local timeLastCoin
+local level
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -175,9 +177,9 @@ end
 
 
 --Music
-local musicBackgroundIntro = audio.loadStream("sounds/backgroundmusicintro.mp3");
-local musicBackground = audio.loadStream("sounds/backgroundmusic2.mp3");
-local musicBackgroundFinalBoss = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
+local backgroundIntroMusic = audio.loadStream("sounds/backgroundmusicintro.mp3");
+local backgroundMusic = audio.loadStream("sounds/backgroundmusic2.mp3");
+local backgroundFinalBossMusic = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
 local whistle2Sound = audio.loadSound("sounds/whistle2.mp3");
@@ -189,10 +191,11 @@ local newLiveSound = audio.loadSound("sounds/newLive.wav");
 local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
 local goalSound = audio.loadSound("sounds/goal.mp3");
 local pew = audio.loadSound("sounds/pew.mp3");
-local coin = audio.loadSound("sounds/coin.mp3");
-local balloonPop = audio.loadSound("sounds/balloonPop.mp3");
-local birdSqueek = audio.loadSound("sounds/balloonPop.mp3");
-local gioca = audio.loadSound("sounds/gioca.mp3");
+local coinSound = audio.loadSound("sounds/coin.mp3");
+local diamondSound = audio.loadSound("sounds/diamond.mp3");
+local balloonSound = audio.loadSound("sounds/balloonPop.mp3");
+local birdSound = audio.loadSound("sounds/bird.mp3");
+local playSound = audio.loadSound("sounds/gioca.mp3");
 local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
 local miss1Sound = audio.loadSound("sounds/miss.mp3");
 local miss2Sound = audio.loadSound("sounds/miss2.mp3");
@@ -213,14 +216,14 @@ function showTitleScreen()
   -- DiegoNik
   local diegoNik = display.newImage("images/diegonik.png")
   diegoNik.x = _SCREEN_CENTRE_X;
-  diegoNik.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2) ;
+  diegoNik.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/3) ;
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
 
   -- Title
   local title = display.newImage("images/gameTitle.png")
   title.x = _SCREEN_CENTRE_X;
-  title.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/10) ;
+  title.y = _SCREEN_CENTRE_Y+(_SCREEN_CENTRE_Y/19) ;
   title.xScale = 0.5
   title.yScale = 0.5
 
@@ -247,7 +250,7 @@ function showTitleScreen()
     soundOptionSprite:setFrame(1)
   end
 
-  backgroundMusicChannel = audio.play(musicBackgroundIntro, {loops =- 1});
+  backgroundMusicChannel = audio.play(backgroundIntroMusic, {loops =- 1});
 
   -- Insert background and button into group
   titleScreenGroup:insert(titleScreen);
@@ -335,7 +338,7 @@ end
 
 function startGame(event)
 
-  backgroundMusicChannel = audio.play(musicBackground, {loops =- 1});
+  backgroundMusicChannel = audio.play(backgroundMusic, {loops =- 1});
 
   paddle.bounciness = 0.1;
   physics.addBody( ball, "dynamic", {density = 1.0, friction = 1, bounce = 1.05, radius = 25, filter = {groupIndex = -1} })
@@ -367,6 +370,7 @@ function initializeGameplayVariable(event)
   scoreFinalBossStage = SCORE_FINAL_BOSS_STAGE
   ballStuck = false
   resetTimers = false
+  level = 1
 end
 
 function initializeTimers(event)
@@ -412,7 +416,7 @@ local function onFinalBossCollision(event)
               if finalBossSprites ~= nil then
                 transition.cancel(finalBossSprites.trans)
                 finalBossSprites.alpha = 1
-                physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
+                physics.addBody( finalBossSprites, "static", {density = 1.0,radius = finalBossSprites.config.radius})
                 finalBossSprites:addEventListener("collision", onFinalBossCollision)
               end
             end
@@ -420,9 +424,9 @@ local function onFinalBossCollision(event)
           end
         end
       )
-      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - DELTA_SCALE_FINAL_BOSS 
-
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (DELTA_SCALE_FINAL_BOSS / (level))
       if(wallTopFinalBoss.xScale <= 0.2) then
+        level = level+1
         audio.play(finalBoss2Sound)
         theKing("dance")
         killObject(wallTopFinalBoss)
@@ -436,7 +440,7 @@ local function onFinalBossCollision(event)
         timer.performWithDelay(4000, function()
             finalBossStage = false
             resetTimers = true
-            backgroundMusicChannel = audio.play(musicBackground, {loops = -1})
+            backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
           end)
       end
     end
@@ -482,11 +486,11 @@ function gameplayFinalBoss(event)
 
 
     if moves[randomMove] == "left" then
-      moveToX = mRandom(finalBossSprites.width /2,finalBossSprites.x)
+      moveToX = mRandom(finalBossSprites.contentWidth /2,finalBossSprites.x)
       moveToY = finalBossSprites.y
     end
     if moves[randomMove] == "right" then
-      moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.width /2))
+      moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2))
       moveToY = finalBossSprites.y
     end
     if moves[randomMove] == "front" then
@@ -495,7 +499,7 @@ function gameplayFinalBoss(event)
     end
     if moves[randomMove] == "back" then
       moveToX = finalBossSprites.x
-      moveToY = mRandom(finalBossSprites.height +20, finalBossSprites.y)
+      moveToY = mRandom((finalBossSprites.contentHeight/2) +20, finalBossSprites.y)
     end
     finalBossSprites:setSequence(moves[randomMove])
     finalBossSprites:play()
@@ -526,7 +530,7 @@ function gameplayFinalBoss(event)
             end
           )
           timer.performWithDelay(1000, function()
-              if paddle and paddle.name then
+              if paddle and paddle.name and not gameOver() then
                 paddle:setFillColor( 1,1,1)
                 Runtime:addEventListener( "touch", dragPaddle )
                 Runtime:removeEventListener("enterFrame", shakePaddle)
@@ -663,7 +667,7 @@ function gameplay(event)
     gameListeners("remove");
     killObject(ball)
     killObject(paddle)
-    audio.rewind(musicBackground)
+    audio.rewind(backgroundMusic)
     audio.stop(backgroundMusicChannel)
     audio.play(whistle2Sound)
     if score > loadedSettings.highScore then
@@ -795,9 +799,9 @@ function spawnDiamond(x,y,bypassQuery)
 
     local function onDiamondCollision(event)
       if event.phase == "began" then
-        if event.other.name == "ball" then
-          audio.play(coin)
-          increaseScore(50)
+        if event.other.name == "ball" or event.other.name == "extraBall" then
+          audio.play(diamondSound)
+          increaseScore(60)
           killObject(myDiamondSprites)
           myDiamondSprites = nil
         end
@@ -833,8 +837,8 @@ function spawnCoin(x,y,bypassQuery)
 
     local function onCoinCollision(event)
       if event.phase == "began" then
-        if event.other.name == "ball" then
-          audio.play(coin)
+        if event.other.name == "ball"  or event.other.name == "extraBall" then
+          audio.play(coinSound)
           increaseScore(50)
           killObject(myCoinSprites)
           myCoinSprites = nil
@@ -871,6 +875,7 @@ function spawnBird()
   
   local function onBirdTouch(event)
     if event.phase == "began" then
+      audio.play(birdSound)
       spawnMultiDiamonds()
       killObject(event.target)
       event.target = nil
@@ -900,7 +905,7 @@ function spawnBalloon()
   balloon.y = _SCREEN_CENTRE_Y + (_SCREEN_CENTRE_Y/2)
   local function onBalloonTouch(event)
     if event.phase == "began" then
-      audio.play(balloonPop)
+      audio.play(balloonSound)
       increaseScore(100)
       spawnMultiCoins()
       Runtime:removeEventListener("enterFrame", balloonGameLogic)
@@ -971,19 +976,29 @@ end
 
 function spawnFinalBoss()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
-  audio.rewind(musicBackground)
+  audio.rewind(backgroundMusic)
   audio.stop(backgroundMusicChannel)
-  backgroundMusicChannel = audio.play(musicBackgroundFinalBoss, {loops =- 1});
+  backgroundMusicChannel = audio.play(backgroundFinalBossMusic, {loops =- 1});
 
   wallTopFinalBoss = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
   physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
   inGameText("Final Boss",TEXT_TYPE.FINALBOSS,"white")
 
   timer.performWithDelay(2500, function()
-      finalBossSprites = display.newSprite( finalBossSheetConfig.finalBossImageSheet, finalBossSheetConfig.finalBossSequenceData )
-      physics.addBody( finalBossSprites, "static", {density = 1.0,radius = 14})
+      local sheetConfig 
+      if level == 1 then 
+        sheetConfig = finalBoss1SheetConfig
+      else
+        sheetConfig = finalBoss2SheetConfig
+      end
+      
+      finalBossSprites = display.newSprite( sheetConfig.finalBossImageSheet, sheetConfig.finalBossSequenceData )
+      finalBossSprites.config = sheetConfig
+      physics.addBody( finalBossSprites, "static", {density = 1.0,radius = sheetConfig.radius})
       finalBossSprites.x = mRandom(finalBossSprites.width,_SCREEN_CENTRE_X*2-finalBossSprites.width); 
       finalBossSprites.y = finalBossSprites.height+20
+      finalBossSprites.xScale = sheetConfig.xScale
+      finalBossSprites.yScale = sheetConfig.yScale
       finalBossSprites.name = "finalBoss"
       gameListenersFinalBoss("add");
     end)
@@ -1273,7 +1288,7 @@ end
 function loadGame(event)
 
   transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
-  audio.play(gioca)
+  audio.play(playSound)
   playBtn:removeEventListener("tap", loadGame);
   soundOptionSprite:removeEventListener("tap", soundConfig);
 
