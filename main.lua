@@ -591,15 +591,9 @@ end
 
 function normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity()
-
-  -- try to avoid stuck ball
-  local lastYPositionWithZeroVelocity = 0
-  if  thisY > -10 and thisY < 10 then
-    lastYPositionWithZeroVelocity = ball.y
-    if (paddle.y - lastYPositionWithZeroVelocity < 200) and (paddle.x==paddle.contentWidth/2 or paddle.x==_SCREEN_CENTRE_X*2 - paddle.contentWidth/2)  then
+    if (not ballStuck) and (thisX == 0) and (paddle.x==paddle.contentWidth/2 or (paddle.x==(_SCREEN_CENTRE_X*2 - paddle.contentWidth/2)))  then
       print("unstuck")
       ballStuck = true
-    end
   end
 
 
