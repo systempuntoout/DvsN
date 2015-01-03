@@ -94,7 +94,7 @@ local TIME_LAST_BIRD = 1000
 local TIME_LAST_DIAMOND = 1000
 local TIME_LAST_COIN = 1000
 
-local TIME_LAST_VELOCITY_INCREASE = 3000
+local TIME_LAST_VELOCITY_INCREASE = 2000
 
 local TIME_LAST_FINALBOSS_SHOOT = 4000
 local TIME_LAST_FINALBOSS_MOVE = 1000
@@ -143,6 +143,10 @@ local timeLastBird
 local timeLastDiamond
 local timeLastCoin
 local level
+local player1
+local player2
+local playerCustom
+local selectedPlayer
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -257,12 +261,42 @@ function showTitleScreen()
   titleScreenGroup:insert(playBtn);
 
   -- Make play button interactive
-  playBtn:addEventListener("tap", loadGame);
+  playBtn:addEventListener("tap", choosePlayer);
   soundOptionSprite:addEventListener("tap", soundConfig);
   if SKIP_MAIN_SCREEN then
     loadGame()
   end 
 end
+
+
+function playerScreen()
+  --Background
+  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  background.x = _SCREEN_CENTRE_X
+  background.y = _SCREEN_CENTRE_Y 
+  player1 = display.newImage("images/player1.png")
+  player1.xScale = 0.8
+  player1.yScale = 0.8
+  player1.x  = 60
+  player1.y  = 250
+  player1.name = "Diego"
+  player2 = display.newImage("images/player2.png")
+  player2.xScale = 0.8
+  player2.yScale = 0.8
+  player2.x  = 160
+  player2.y  = 250
+  player2.name = "Nicola"
+  playerCustom = display.newImage("images/playerCustom.png")
+  playerCustom.xScale = 0.8
+  playerCustom.yScale = 0.8
+  playerCustom.x  = 260
+  playerCustom.y  = 250
+  playerCustom.name = "Custom"
+  player1:addEventListener("tap",loadGame)
+  player2:addEventListener("tap",loadGame)
+  --playerCustom:addEventListener("tap",loadGame)
+end
+
 
 -- Set up the game space
 function initializeGameScreen()
@@ -315,7 +349,14 @@ function initializeGameScreen()
   ball.name = "ball"
 
   --Paddle
-  paddle = display.newImage("images/diego2.png")
+  if (selectedPlayer =="Diego") then
+    paddle = display.newImage("images/diego2.png")
+  elseif (selectedPlayer =="Nicola") then
+    paddle = display.newImage("images/niky.png")
+  elseif (selectedPlayer =="Custom") then 
+    paddle = display.newImage("images/diego2.png")
+  end  
+  
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
   paddle.name = "paddle"
 
@@ -631,7 +672,7 @@ end
       timeLastPowerup = event.time
     end
     if event.time-timeLastMonster >= mRandom(MONSTER_SPAWN_MIN, MONSTER_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-      spawnMonster()
+      spawnEnemy()
       timeLastMonster = event.time
     end
     if event.time-timeLastBalloon >= mRandom(BALLOON_SPAWN_MIN, BALLOON_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
@@ -738,12 +779,30 @@ end
     end  
   end
 
-  function spawnMonster()
-    local enemy = display.newImage("images/enemy" .. mRandom(1,6) .. ".png")
+  function spawnEnemy()
+    
+    local rn = mRandom(1,7)
+    if selectedPlayer == "Diego" then
+      if rn == 2 then 
+        rn = 1 
+      end
+    end
+    if selectedPlayer == "Nicola" then
+      if rn == 1 then 
+        rn = 2 
+      end
+    end
+    local enemy = display.newImage("images/enemy" .. rn .. ".png")
     enemy.name = "Monster"
     enemy.isVisible = false
-    enemy.xScale = 0.8
-    enemy.yScale = 0.8
+    if mRandom(2) == 1 then
+      enemy.xScale = -0.8
+      enemy.yScale = 0.8
+    else
+      enemy.xScale = 0.8
+      enemy.yScale = 0.8
+    end
+    
     local randomX = mRandom(enemy.width /2 , _SCREEN_CENTRE_X*2 - enemy.width)
     local randomY = mRandom(enemy.height /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
     enemy.x = randomX
@@ -1074,7 +1133,7 @@ end
       local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
       increaseScore(50)
       audio.play(enemySound)
-      timer.performWithDelay(2, function() if event.target~=nil then physics.removeBody(event.target) end  end)
+      timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
       transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
     end
   end
@@ -1295,10 +1354,12 @@ end
 
 
   function loadGame(event)
-
+    selectedPlayer = event.target.name 
     transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
     audio.play(playSound)
-    playBtn:removeEventListener("tap", loadGame);
+    player1:removeEventListener("tap", loadGame);
+    player2:removeEventListener("tap", loadGame);
+    playerCustom:removeEventListener("tap", loadGame);
     soundOptionSprite:removeEventListener("tap", soundConfig);
 
   end
