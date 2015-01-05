@@ -31,6 +31,9 @@ local theKingSheetConfig = require("spritesheets.thekingspritesheetconfig")
 local birdSheetConfig = require("spritesheets.birdspritesheetconfig")
 local bird2SheetConfig = require("spritesheets.bird2spritesheetconfig")
 local diamondSheetConfig = require("spritesheets.diamondspritesheetconfig")
+local bulletSheetConfig = require("spritesheets.bulletspritesheetconfig")
+local bullet2SheetConfig = require("spritesheets.bullet2spritesheetconfig")
+local bullet3SheetConfig = require("spritesheets.bullet3spritesheetconfig")
 
 mRandom = math.random
 
@@ -424,7 +427,7 @@ function startGame(event)
   physics.addBody(wallTopLeft, "static", {density = 1.0, friction = 1, bounce = 0.2})
   physics.addBody(wallTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
 
-  initializeGameplayVariable(event)
+  initializeGameplayVariables(event)
   resetTimers = true
   if (mRandom() <0.5) then
     ball:applyAngularImpulse( mRandom(200, 300) )
@@ -437,7 +440,7 @@ function startGame(event)
   gameListeners("add");
 end
 
-function initializeGameplayVariable(event)
+function initializeGameplayVariables(event)
   score = 0
   increaseVelocityOnBounce = false
   current_lives = NUMBER_OF_LIVES
@@ -583,18 +586,29 @@ function gameplayFinalBoss(event)
   end
 
   local function finalBossShoot()
-    local bullet = display.newImage("images/bullet.png") 
-    bullet.x = finalBossSprites.x
-    bullet.y = finalBossSprites.y+ (finalBossSprites.height/2)
-    physics.addBody(bullet, "dynamic", {density = 1.0, radius = 9, filter = {groupIndex = -1}}) 
-    bullet.gravityScale = 0
-    bullet:applyForce( (paddle.x - bullet.x)*0.2  , (paddle.y - bullet.y)*0.2 , bullet.x, bullet.y )
+    if level == 1 then
+      sheetConfig = bulletSheetConfig
+    elseif level == 2 then
+      sheetConfig = bullet2SheetConfig
+    else
+      sheetConfig = bullet3SheetConfig
+    end 
+   
+    local bulletSprites = display.newSprite( sheetConfig.myBulletImageSheet, sheetConfig.bulletSequenceData )
+    bulletSprites.name = "bullet"
+    bulletSprites.x = finalBossSprites.x
+    bulletSprites.y = finalBossSprites.y+ (finalBossSprites.height/2)
+    bulletSprites:setSequence("bullet")
+    bulletSprites:play()
+    physics.addBody(bulletSprites, "dynamic", {density = sheetConfig.density, radius = sheetConfig.radius, filter = {groupIndex = -1}}) 
+    bulletSprites.gravityScale = 0
+    bulletSprites:applyForce( (paddle.x - bulletSprites.x)*0.2  , (paddle.y - bulletSprites.y)*0.2 , bulletSprites.x, bulletSprites.y )
 
     local function onBulletCollision(event)
       if  event.phase == "ended" then
         if event.other.name == "paddle" then
           colors.setFillColor( paddle, "green" )
-          bullet:removeEventListener("collision", onBulletCollision)
+          bulletSprites:removeEventListener("collision", onBulletCollision)
           killObject(event.target)
           Runtime:removeEventListener( "touch", dragPaddle )
           local function shakePaddle()
@@ -616,7 +630,7 @@ function gameplayFinalBoss(event)
         end  
       end
     end
-    bullet:addEventListener("collision", onBulletCollision)
+    bulletSprites:addEventListener("collision", onBulletCollision)
     audio.play(pew)
   end
   if event.time- timeLastFinalBossShoot >= mRandom(FINALBOSS_SHOOT_MIN, FINALBOSS_SHOOT_MAX) and not gameOver() then
