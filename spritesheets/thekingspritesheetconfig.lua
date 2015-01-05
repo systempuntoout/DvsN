@@ -45,7 +45,7 @@ local theKingSequenceData = {
     sheet=theKingImageSheet,
     frames= { 16,17,18,19,20},
     time=1000,
-    loopCount = 3
+    loopCount = 4
   },
 }
 

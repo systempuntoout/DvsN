@@ -16,4 +16,6 @@ local birdSequenceData = {
 
 M.myBirdImageSheet = myBirdImageSheet
 M.birdSequenceData = birdSequenceData
+M.xScale = 0.3
+M.yScale = 0.3
 return M
