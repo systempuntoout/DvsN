@@ -11,7 +11,7 @@ local finalBossSequenceData = {
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 1,
     count = 3,-- number of frames
-    time=1000,                                    -- speed
+    time=500,                                    -- speed
     loopCount=0                                   -- repeat
   },
   {
@@ -19,7 +19,7 @@ local finalBossSequenceData = {
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 4,
     count = 3,-- number of frames
-    time=1000,                                    -- speed
+    time=500,                                    -- speed
     loopCount=0                                   -- repeat
   },
   {
@@ -27,7 +27,7 @@ local finalBossSequenceData = {
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 7,
     count = 3,-- number of frames
-    time=1000,                                    -- speed
+    time=500,                                    -- speed
     loopCount=0                                   -- repeat
   },
   {
@@ -35,7 +35,7 @@ local finalBossSequenceData = {
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 10,
     count = 3,-- number of frames
-    time=1000,                                    -- speed
+    time=500,                                    -- speed
     loopCount=0                                   -- repeat
   }
 }
@@ -45,4 +45,6 @@ M.finalBossSequenceData = finalBossSequenceData
 M.radius = 34
 M.xScale = 1
 M.yScale = 1
+M.hits = 5
+M.currentHits = 5
 return M

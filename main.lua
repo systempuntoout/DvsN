@@ -77,6 +77,7 @@ local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 600
 local BALL_VELOCITY_INCREASE = 2
+local MAX_LEVEL = 3
 
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
@@ -115,7 +116,6 @@ local FINALBOSS_MOVE_MAX = 2000
 
 local SCORE_FINAL_BOSS_STAGE = 10000
 local DELTA_SCORE_FINAL_BOSS_STAGE = 10000
-local DELTA_SCALE_FINAL_BOSS = 0.3
 
 local paddle
 local ball
@@ -309,6 +309,15 @@ function playerScreen()
   playerCustom:addEventListener("tap",loadGame)
 end
 
+function endScreen()
+  --Background
+  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  background.x = _SCREEN_CENTRE_X
+  background.y = _SCREEN_CENTRE_Y 
+  textBoxScreen("CONGRATULAZIONI!", "Punti: "..score)
+end
+
+
 
 -- Set up the game space
 function initializeGameScreen()
@@ -332,7 +341,7 @@ function initializeGameScreen()
   -- The king
   theKingSprites = display.newSprite( theKingSheetConfig.theKingImageSheet, theKingSheetConfig.theKingSequenceData )
   theKingSprites.x = _SCREEN_CENTRE_X
-  theKingSprites.y = _SCREEN_CENTRE_Y
+  theKingSprites.y = _SCREEN_CENTRE_Y-20
   gameScreenGroup:insert(theKingSprites)
   theKingSprites.isVisible = false
   theKingSprites.xScale = 2
@@ -495,6 +504,8 @@ local function onFinalBossCollision(event)
   if event.phase == "began" then
     if event.other.name == "ball" then
       audio.play(finalBossSound)
+      startShake()
+      timer.performWithDelay( 500, stopShake )
       finalBossSprites:removeEventListener("collision", onFinalBossCollision)
       timer.performWithDelay(1, function()
           if finalBossSprites ~= nil and finalBossSprites.name then
@@ -512,9 +523,21 @@ local function onFinalBossCollision(event)
           end
         end
       )
-      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (DELTA_SCALE_FINAL_BOSS / (level+1))
-      if(wallTopFinalBoss.xScale <= 0.2) then
-        level = level+1
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (1 / finalBossSprites.config.hits )
+      finalBossSprites.config.currentHits = finalBossSprites.config.currentHits - 1
+      -- Boss defeated
+      local isBossDefeated = finalBossSprites.config.currentHits <= 0
+      
+      if isBossDefeated then
+        gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+        gameListeners("remove")
+        paddle:setFillColor( 1, 1, 1 )
+        timer.performWithDelay(1, function()
+        ball.gravityScale = 0
+        ball:setLinearVelocity(0,0 )
+        ball.v = 0
+        ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+        paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
         audio.play(finalBoss2Sound)
         theKing("dance")
         killObject(wallTopFinalBoss)
@@ -528,8 +551,26 @@ local function onFinalBossCollision(event)
         timer.performWithDelay(4000, function()
             finalBossStage = false
             resetTimers = true
-            backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
+            if gameEnded() then
+              if score > loadedSettings.highScore then
+                loadedSettings.highScore = score
+                loadsave.saveTable( loadedSettings, "settings.json" )
+              end 
+              transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = endScreen});
+            else
+              level = level+1
+              backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
+              gameListeners("add")
+              inGameText("Level " .. level, TEXT_TYPE.STATIC, "white")
+              ball.gravityScale = 1
+              if (mRandom() <0.5) then
+                ball:applyAngularImpulse( mRandom(200, 300) )
+              else
+                ball:applyAngularImpulse( mRandom(-300, -200) )
+              end
+            end
           end)
+        end)
       end
     end
   end
@@ -574,11 +615,19 @@ function gameplayFinalBoss(event)
 
 
     if moves[randomMove] == "left" then
-      moveToX = mRandom(finalBossSprites.contentWidth /2,finalBossSprites.x)
+      if finalBossSprites.contentWidth /2<finalBossSprites.x then
+        moveToX = mRandom(finalBossSprites.contentWidth /2,finalBossSprites.x)
+      else
+        moveToX = mRandom(finalBossSprites.x,finalBossSprites.contentWidth /2)
+      end
       moveToY = finalBossSprites.y
     end
     if moves[randomMove] == "right" then
-      moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2))
+      if finalBossSprites.x < _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2) then
+        moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2))
+      else
+        moveToX = mRandom( _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2), finalBossSprites.x)
+      end
       moveToY = finalBossSprites.y
     end
     if moves[randomMove] == "front" then
@@ -587,7 +636,11 @@ function gameplayFinalBoss(event)
     end
     if moves[randomMove] == "back" then
       moveToX = finalBossSprites.x
-      moveToY = mRandom((finalBossSprites.contentHeight/2) +20, finalBossSprites.y)
+      if (finalBossSprites.contentHeight/2) +20< finalBossSprites.y then
+        moveToY = mRandom((finalBossSprites.contentHeight/2) +20, finalBossSprites.y)
+      else
+        moveToY = mRandom(finalBossSprites.y,(finalBossSprites.contentHeight/2) +20 )
+      end
     end
     finalBossSprites:setSequence(moves[randomMove])
     finalBossSprites:play()
@@ -613,6 +666,7 @@ function gameplayFinalBoss(event)
    
     local bulletSprites = display.newSprite( sheetConfig.myBulletImageSheet, sheetConfig.bulletSequenceData )
     bulletSprites.name = "bullet"
+    gameplayItemsGroup:insert(bulletSprites)
     bulletSprites.x = finalBossSprites.x
     bulletSprites.y = finalBossSprites.y+ (finalBossSprites.height/2)
     bulletSprites:setSequence("bullet")
@@ -822,6 +876,10 @@ function gameOver()
   return current_lives == 0
 end
 
+function gameEnded()
+  return level == MAX_LEVEL
+end
+
 function updateBallVelocity()
   local vx, vy = ball:getLinearVelocity()  
   ball:setLinearVelocity(vx*BALL_VELOCITY_INCREASE,vy*BALL_VELOCITY_INCREASE)
@@ -850,7 +908,15 @@ function theKing(sequence)
 end
 
 function spawnEnemy()
-
+  local function destroyEnemy(event)
+      if event.phase == "ended" then
+        local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
+        increaseScore(50)
+        audio.play(enemySound)
+        timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
+        transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
+      end
+    end
   local rn = mRandom(1,7)
   if selectedPlayer == "Diego" then
     if rn == 2 then 
@@ -900,7 +966,7 @@ function spawnEnemy()
             transition.to(enemy, {alpha=1, onComplete = randomEnemy})  
           end
         end)
-      enemy:addEventListener("collision", destroyMonster);
+      enemy:addEventListener("collision", destroyEnemy);
     end
   else
     killObject(enemy)
@@ -1262,16 +1328,6 @@ function spawnPowerUp()
 
 end
 
-function destroyMonster(event)
-  if event.phase == "ended" then
-    local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
-    increaseScore(50)
-    audio.play(enemySound)
-    timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
-    transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
-  end
-end
-
 function addLifeSaver()
   local lifeSaver = display.newImage("images/ironWall.png", _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y*2-1)
   physics.addBody(lifeSaver, "static", {bounce = 1.5, friction=2})
@@ -1401,16 +1457,18 @@ end
 
 function dragPaddle(event)
   local moveX = 0
-  if event.phase == "began" then
-    moveX = event.x - paddle.x
-  elseif event.phase == "moved" then
-    paddle.x = event.x - moveX
-  end
+  if paddle ~= nil and paddle.name then
+    if event.phase == "began" then
+      moveX = event.x - paddle.x
+    elseif event.phase == "moved" then
+      paddle.x = event.x - moveX
+    end
 
-  if((paddle.x - paddle.width * 0.5) < 0) then
-    paddle.x = paddle.width * 0.5
-  elseif((paddle.x + paddle.width * 0.5) > display.contentWidth) then
-    paddle.x = display.contentWidth - paddle.width * 0.5
+    if((paddle.x - paddle.width * 0.5) < 0) then
+      paddle.x = paddle.width * 0.5
+    elseif((paddle.x + paddle.width * 0.5) > display.contentWidth) then
+      paddle.x = display.contentWidth - paddle.width * 0.5
+    end
   end
 end 
 
