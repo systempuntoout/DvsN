@@ -158,6 +158,7 @@ local player1
 local player2
 local playerCustom
 local selectedPlayer
+local customPlayerAlreadyCaptured = false
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -378,6 +379,7 @@ function initializeGameScreen()
     local function onCompleteCapture( event )
       local photo = event.target
       if photo ~= nil then
+        customPlayerAlreadyCaptured = true
         local endWidth = 480  * display.contentScaleX
         local endHeight = 640 * display.contentScaleY
         local scale = math.max(endWidth / photo.contentWidth, endHeight / photo.contentHeight)
@@ -401,13 +403,17 @@ function initializeGameScreen()
       end
       inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
     end
-    if media.hasSource( media.Camera ) then
-      media.capturePhoto( { listener=onCompleteCapture } )
+    
+    if customPlayerAlreadyCaptured then
+      paddle = display.newImageRect("imageTmp.png",system.DocumentsDirectory,60,60)
     else
-      native.showAlert( "Corona", "This device does not have a camera.", { "OK" } )
+      if media.hasSource( media.Camera ) then
+        media.capturePhoto( { listener=onCompleteCapture } )
+      else
+        native.showAlert( "Corona", "This device does not have a camera.", { "OK" } )
+      end
+      paddle = display.newImageRect("images/custom.png",60,60)
     end
-
-    paddle = display.newImageRect("images/custom.png",60,60)
   end  
 
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
@@ -425,7 +431,7 @@ function initializeGameScreen()
   wallTopLeft = display.newRect(55, 23, 110, 0)
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
 
-  if selectedPlayer ~="Custom" then
+  if selectedPlayer ~="Custom" or customPlayerAlreadyCaptured then
     inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
   end
 
@@ -1254,6 +1260,7 @@ function spawnFinalBoss()
 
       finalBossSprites = display.newSprite( sheetConfig.finalBossImageSheet, sheetConfig.finalBossSequenceData )
       finalBossSprites.config = sheetConfig
+      sheetConfig.currentHits = sheetConfig.hits
       physics.addBody( finalBossSprites, "static", {density = 1.0,radius = sheetConfig.radius})
       finalBossSprites.x = mRandom(finalBossSprites.width,_SCREEN_CENTRE_X*2-finalBossSprites.width); 
       finalBossSprites.y = finalBossSprites.height+20
