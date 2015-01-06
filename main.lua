@@ -24,8 +24,9 @@ local colors = require("lib.colors")
 
 local sheetConfig = require("spritesheets.spritesheetconfig")
 local powerupSheetConfig  = require("spritesheets.powerupspritesheetconfig")
-local finalBoss1SheetConfig  = require("spritesheets.finalbossspritesheetconfig")
+local finalBoss1SheetConfig  = require("spritesheets.finalboss1spritesheetconfig")
 local finalBoss2SheetConfig  = require("spritesheets.finalboss2spritesheetconfig")
+local finalBoss3SheetConfig  = require("spritesheets.finalboss3spritesheetconfig")
 local coinSheetConfig = require("spritesheets.coinspritesheetconfig")
 local theKingSheetConfig = require("spritesheets.thekingspritesheetconfig")
 local birdSheetConfig = require("spritesheets.birdspritesheetconfig")
@@ -34,6 +35,8 @@ local diamondSheetConfig = require("spritesheets.diamondspritesheetconfig")
 local bulletSheetConfig = require("spritesheets.bulletspritesheetconfig")
 local bullet2SheetConfig = require("spritesheets.bullet2spritesheetconfig")
 local bullet3SheetConfig = require("spritesheets.bullet3spritesheetconfig")
+local balloonSheetConfig = require("spritesheets.balloonspritesheetconfig")
+local canSheetConfig = require("spritesheets.canspritesheetconfig")
 
 mRandom = math.random
 
@@ -85,6 +88,8 @@ local BIRD_SPAWN_MIN = 20000
 local BIRD_SPAWN_MAX = 35000
 local DIAMOND_SPAWN_MIN = 10000 
 local DIAMOND_SPAWN_MAX = 12000
+local CAN_SPAWN_MIN = 10000
+local CAN_SPAWN_MAX = 12000
 local VELOCITY_INCREASE_MIN = 8000
 local VELOCITY_INCREASE_MAX = 10000 
 
@@ -93,9 +98,10 @@ local COIN_SPAWN_MAX = 12000
 
 local TIME_LAST_POWERUP = 10000
 local TIME_LAST_MONSTER = 3000
-local TIME_LAST_BALLOON = 20000
+local TIME_LAST_BALLOON = 1000
 local TIME_LAST_BIRD = 1000
 local TIME_LAST_DIAMOND = 1000
+local TIME_LAST_CAN = 1000
 local TIME_LAST_COIN = 1000
 
 local TIME_LAST_VELOCITY_INCREASE = 2000
@@ -146,6 +152,7 @@ local timeLastBalloon
 local timeLastBird
 local timeLastDiamond
 local timeLastCoin
+local timeLastCan
 local level
 local player1
 local player2
@@ -207,6 +214,7 @@ local playSound = audio.loadSound("sounds/gioca.mp3");
 local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
 local miss1Sound = audio.loadSound("sounds/miss.mp3");
 local miss2Sound = audio.loadSound("sounds/miss2.mp3");
+local canSound = audio.loadSound("sounds/can.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -462,6 +470,7 @@ function initializeTimers(event)
   timeLastBird = TIME_LAST_BIRD + event.time
   timeLastDiamond = TIME_LAST_DIAMOND + event.time
   timeLastCoin = TIME_LAST_COIN + event.time
+  timeLastCan = TIME_LAST_CAN + event.time
 end
 
 function gameListeners(event)
@@ -492,7 +501,7 @@ local function onFinalBossCollision(event)
             physics.removeBody(finalBossSprites)
             finalBossSprites.trans = transition.blink(finalBossSprites,{time=500})
             local function stopBlink()
-              if finalBossSprites ~= nil then
+              if finalBossSprites ~= nil and finalBossSprites.name then
                 transition.cancel(finalBossSprites.trans)
                 finalBossSprites.alpha = 1
                 physics.addBody( finalBossSprites, "static", {density = 1.0,radius = finalBossSprites.config.radius})
@@ -589,9 +598,17 @@ function gameplayFinalBoss(event)
     if level == 1 then
       sheetConfig = bulletSheetConfig
     elseif level == 2 then
-      sheetConfig = bullet2SheetConfig
+      if mRandom(2) == 1 then
+        sheetConfig = bulletSheetConfig
+      else
+        sheetConfig = bullet2SheetConfig
+      end
     else
-      sheetConfig = bullet3SheetConfig
+      if mRandom(2) == 1 then
+        sheetConfig = bullet2SheetConfig
+      else
+        sheetConfig = bullet3SheetConfig
+      end
     end 
    
     local bulletSprites = display.newSprite( sheetConfig.myBulletImageSheet, sheetConfig.bulletSequenceData )
@@ -737,6 +754,10 @@ function gameplay(event)
   if event.time-timeLastDiamond >= mRandom(DIAMOND_SPAWN_MIN, DIAMOND_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnDiamond()
     timeLastDiamond = event.time
+  end
+  if event.time-timeLastCan >= mRandom(CAN_SPAWN_MIN, CAN_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnCan()
+    timeLastCan = event.time
   end
   if event.time-timeLastCoin >= mRandom(COIN_SPAWN_MIN, COIN_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
     spawnCoin()
@@ -923,6 +944,42 @@ function spawnDiamond(x,y,bypassQuery)
   end
 end
 
+function spawnCan(x,y,bypassQuery)
+  local myCanSprites = display.newSprite( canSheetConfig.myCanImageSheet, canSheetConfig.canSequenceData )
+  physics.addBody( myCanSprites, "static", {density = 1, radius = 15, isSensor = true})
+  myCanSprites.name = "can"
+  myCanSprites.isVisible = false
+  myCanSprites.xScale = 0.7;
+  myCanSprites.yScale = 0.7;
+  local randomX = x or mRandom(myCanSprites.contentWidth /2 , _SCREEN_CENTRE_X*2 - myCanSprites.contentWidth)
+  local randomY = y or mRandom(myCanSprites.contentHeight /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
+  local esisteCan = physics.queryRegion( randomX, randomY, randomX+myCanSprites.contentWidth, randomY+myCanSprites.contentHeight )
+
+  if (not esisteCan) or bypassQuery then
+    myCanSprites.isVisible = true
+    gameplayItemsGroup:insert(myCanSprites)
+    gameplayItemsGroup:toFront()
+    myCanSprites.x = randomX
+    myCanSprites.y = randomY
+    myCanSprites:setSequence("can"..mRandom(5))
+    myCanSprites:play()
+
+    local function onCanCollision(event)
+      if event.phase == "began" then
+        if event.other.name == "ball" or event.other.name == "extraBall" then
+          audio.play(canSound)
+          increaseScore(20)
+          killObject(myCanSprites)
+          myCanSprites = nil
+        end
+      end
+    end
+    myCanSprites:addEventListener("collision", onCanCollision);
+  else
+    killObject(myCanSprites)
+    myCanSprites = nil
+  end
+end
 
 function spawnCoin(x,y,bypassQuery)
   local myCoinSprites = display.newSprite( coinSheetConfig.myCoinImageSheet, coinSheetConfig.coinSequenceData )
@@ -970,6 +1027,15 @@ function spawnMultiDiamonds()
   end
 end 
 
+function spawnMultiCans()
+  gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  for y=1,7 do
+    for x = 1, 7 do
+      spawnCan(40*x+5,40*y+5,true)
+    end
+  end
+end
+
 function spawnMultiCoins()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
   for y=1,7 do
@@ -982,8 +1048,10 @@ function spawnBird()
   local sheetConfig 
   if mRandom(2) == 1 then 
     sheetConfig = birdSheetConfig
+    sheetConfig.birdtype = "red"
   else
     sheetConfig = bird2SheetConfig
+    sheetConfig.birdtype = "green"
   end
   
   local birdSprites = display.newSprite( sheetConfig.myBirdImageSheet, sheetConfig.birdSequenceData )
@@ -992,7 +1060,11 @@ function spawnBird()
   local function onBirdTouch(event)
     if event.phase == "began" then
       audio.play(birdSound)
-      spawnMultiDiamonds()
+      if sheetConfig.birdtype ==  "red" then
+        spawnMultiCans()
+      else
+        spawnMultiDiamonds()
+      end
       killObject(event.target)
       event.target = nil
     end
@@ -1011,36 +1083,40 @@ function spawnBird()
 end
 
 function spawnBalloon()
-  local balloon = display.newImageRect( "images/balloon.png",40,40 )
-  physics.addBody( balloon, "dynamic", {density = 1, radius = 15, isSensor = true})
-  balloon.name = "balloon"
-  balloon.gravityScale = -0.2
-  gameplayItemsGroup:insert(balloon)
+  local balloonSprite = display.newSprite( balloonSheetConfig.myImageSheet, balloonSheetConfig.balloonSequenceData )
+  --local balloon = display.newImageRect( "images/balloon.png",40,40 )
+  balloonSprite:setFrame(mRandom(35))
+  balloonSprite.xScale = 0.7
+  balloonSprite.yScale = 0.7
+  physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
+  balloonSprite.name = "balloon"
+  balloonSprite.gravityScale = -0.2
+  gameplayItemsGroup:insert(balloonSprite)
   gameplayItemsGroup:toFront()
-  balloon.x =  mRandom(balloon.contentWidth, _SCREEN_CENTRE_X*2 - balloon.contentWidth)
-  balloon.y = _SCREEN_CENTRE_Y + (_SCREEN_CENTRE_Y/2)
+  balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
+  balloonSprite.y = _SCREEN_CENTRE_Y + (_SCREEN_CENTRE_Y/2)
   local function onBalloonTouch(event)
     if event.phase == "began" then
       audio.play(balloonSound)
       increaseScore(100)
       spawnMultiCoins()
       Runtime:removeEventListener("enterFrame", balloonGameLogic)
-      killObject(balloon)
-      balloon = nil
+      killObject(balloonSprite)
+      balloonSprite = nil
     end
   end
   local function balloonGameLogic(event)
-    if balloon ~= nil then
-      if balloon.y and balloon.y < _SCREEN_TOP then
-        balloon:removeEventListener("touch", onBalloonTouch)
+    if balloonSprite ~= nil then
+      if balloonSprite.y and balloonSprite.y < _SCREEN_TOP then
+        balloonSprite:removeEventListener("touch", onBalloonTouch)
         Runtime:removeEventListener("enterFrame", balloonGameLogic)
-        killObject(balloon)
-        balloon = nil
+        killObject(balloonSprite)
+        balloonSprite = nil
       end
     end
   end
 
-  balloon:addEventListener("touch", onBalloonTouch)
+  balloonSprite:addEventListener("touch", onBalloonTouch)
   Runtime:addEventListener("enterFrame", balloonGameLogic)
 end
 
@@ -1104,8 +1180,10 @@ function spawnFinalBoss()
       local sheetConfig 
       if level == 1 then 
         sheetConfig = finalBoss1SheetConfig
-      else
+      elseif level==2 then
         sheetConfig = finalBoss2SheetConfig
+      else
+        sheetConfig = finalBoss3SheetConfig
       end
 
       finalBossSprites = display.newSprite( sheetConfig.finalBossImageSheet, sheetConfig.finalBossSequenceData )

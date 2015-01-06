@@ -1,40 +1,40 @@
 local M = {}
-local finalBossSheetInfo = require("spritesheets.finalbossspritesheet")
+local finalBossSheetInfo = require("spritesheets.finalboss1spritesheet")
 
 
 -- Final boos sheet
-local finalBossImageSheet = graphics.newImageSheet ( "images/finalbossspritesheet.png", finalBossSheetInfo:getSheet() )
+local finalBossImageSheet = graphics.newImageSheet ( "images/finalboss1spritesheet.png", finalBossSheetInfo:getSheet() )
 
 local finalBossSequenceData = {
   {
     name="front",                                  -- name of the animation
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 1,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="right",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 5,
-    count = 4,-- number of frames
-    time=1000,                                    -- speed
-    loopCount=0                                   -- repeat
-  },
-  {
-    name="back",                                  -- name of the animation
-    sheet=finalBossImageSheet,                           -- the image sheet
-    start= 9,
-    count = 4,-- number of frames
+    count = 3,-- number of frames
     time=1000,                                    -- speed
     loopCount=0                                   -- repeat
   },
   {
     name="left",                                  -- name of the animation
     sheet=finalBossImageSheet,                           -- the image sheet
-    start= 13,
-    count = 4,-- number of frames
+    start= 4,
+    count = 3,-- number of frames
+    time=1000,                                    -- speed
+    loopCount=0                                   -- repeat
+  },
+  {
+    name="right",                                  -- name of the animation
+    sheet=finalBossImageSheet,                           -- the image sheet
+    start= 7,
+    count = 3,-- number of frames
+    time=1000,                                    -- speed
+    loopCount=0                                   -- repeat
+  },
+  {
+    name="back",                                  -- name of the animation
+    sheet=finalBossImageSheet,                           -- the image sheet
+    start= 10,
+    count = 3,-- number of frames
     time=1000,                                    -- speed
     loopCount=0                                   -- repeat
   }
@@ -42,7 +42,7 @@ local finalBossSequenceData = {
 
 M.finalBossImageSheet = finalBossImageSheet
 M.finalBossSequenceData = finalBossSequenceData
-M.radius = 19
-M.xScale = 1.3
-M.yScale = 1.3
+M.radius = 34
+M.xScale = 1
+M.yScale = 1
 return M

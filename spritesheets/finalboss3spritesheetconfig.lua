@@ -1,9 +1,9 @@
 local M = {}
-local finalBossSheetInfo = require("spritesheets.finalbossspritesheet")
+local finalBossSheetInfo = require("spritesheets.finalboss3spritesheet")
 
 
 -- Final boos sheet
-local finalBossImageSheet = graphics.newImageSheet ( "images/finalbossspritesheet.png", finalBossSheetInfo:getSheet() )
+local finalBossImageSheet = graphics.newImageSheet ( "images/finalboss3spritesheet.png", finalBossSheetInfo:getSheet() )
 
 local finalBossSequenceData = {
   {
@@ -15,7 +15,7 @@ local finalBossSequenceData = {
     loopCount=0                                   -- repeat
   },
   {
-    name="right",                                  -- name of the animation
+    name="left",                                  -- name of the animation
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 5,
     count = 4,-- number of frames
@@ -23,7 +23,7 @@ local finalBossSequenceData = {
     loopCount=0                                   -- repeat
   },
   {
-    name="back",                                  -- name of the animation
+    name="right",                                  -- name of the animation
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 9,
     count = 4,-- number of frames
@@ -31,7 +31,7 @@ local finalBossSequenceData = {
     loopCount=0                                   -- repeat
   },
   {
-    name="left",                                  -- name of the animation
+    name="back",                                  -- name of the animation
     sheet=finalBossImageSheet,                           -- the image sheet
     start= 13,
     count = 4,-- number of frames
@@ -42,7 +42,7 @@ local finalBossSequenceData = {
 
 M.finalBossImageSheet = finalBossImageSheet
 M.finalBossSequenceData = finalBossSequenceData
-M.radius = 19
-M.xScale = 1.3
-M.yScale = 1.3
+M.radius = 30
+M.xScale = 1
+M.yScale = 1
 return M
