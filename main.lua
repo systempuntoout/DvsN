@@ -1150,7 +1150,7 @@ function spawnBird()
   gameplayItemsGroup:toFront()
   birdSprites:setSequence("fly")
   birdSprites:play()
-  transition.to(birdSprites, {time = 4000, x = _SCREEN_CENTRE_X*2+birdSprites.contentWidth, onComplete = killObject})
+  transition.to(birdSprites, {time = 3000, x = _SCREEN_CENTRE_X*2+birdSprites.contentWidth, onComplete = killObject})
   birdSprites:addEventListener("touch", onBirdTouch)
 end
 
@@ -1162,7 +1162,7 @@ function spawnBalloon()
   balloonSprite.yScale = 0.7
   physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
   balloonSprite.name = "balloon"
-  balloonSprite.gravityScale = -0.2
+  balloonSprite.gravityScale = -0.9
   gameplayItemsGroup:insert(balloonSprite)
   gameplayItemsGroup:toFront()
   balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
