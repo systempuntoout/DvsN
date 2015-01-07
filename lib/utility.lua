@@ -17,10 +17,10 @@ function rPrint(s, l, i) -- recursive Print (structure, limit, indent)
 
 --circle-based collision detection
   function hasCollidedCircle( obj1, obj2 )
-    if ( obj1 == nil ) then  --make sure the first object exists
+    if ( obj1 == nil or not obj1.contentWidth ) then  --make sure the first object exists
       return false
     end
-    if ( obj2 == nil ) then  --make sure the other object exists
+    if ( obj2 == nil or not obj2.contentWidth ) then  --make sure the other object exists
       return false
     end
 

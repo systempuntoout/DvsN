@@ -18,4 +18,5 @@ M.myBirdImageSheet = myBird2ImageSheet
 M.birdSequenceData = bird2SequenceData
 M.xScale = 0.1
 M.yScale = 0.1
+M.time = 4500
 return M

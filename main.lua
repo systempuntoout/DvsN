@@ -6,7 +6,7 @@
 --require('mobdebug').start() 
 
 local DEBUG = false
-local SKIP_MAIN_SCREEN = false
+local SKIP_MAIN_SCREEN = true
 
 
 display.setStatusBar(display.HiddenStatusBar);
@@ -37,6 +37,9 @@ local bullet2SheetConfig = require("spritesheets.bullet2spritesheetconfig")
 local bullet3SheetConfig = require("spritesheets.bullet3spritesheetconfig")
 local balloonSheetConfig = require("spritesheets.balloonspritesheetconfig")
 local canSheetConfig = require("spritesheets.canspritesheetconfig")
+local explosionSheetConfig = require("spritesheets.explosionspritesheetconfig")
+local asteroidSheetConfig = require("spritesheets.asteroidspritesheetconfig")
+local bombSheetConfig = require("spritesheets.bombspritesheetconfig")
 
 mRandom = math.random
 
@@ -93,6 +96,10 @@ local CAN_SPAWN_MIN = 10000
 local CAN_SPAWN_MAX = 12000
 local VELOCITY_INCREASE_MIN = 8000
 local VELOCITY_INCREASE_MAX = 10000 
+local ASTEROID_SPAWN_MIN = 3000   
+local ASTEROID_SPAWN_MAX = 7000
+local BOMB_SPAWN_MIN = 1000 
+local BOMB_SPAWN_MAX = 2000
 
 local COIN_SPAWN_MIN = 10000 
 local COIN_SPAWN_MAX = 12000
@@ -104,8 +111,10 @@ local TIME_LAST_BIRD = 1000
 local TIME_LAST_DIAMOND = 1000
 local TIME_LAST_CAN = 1000
 local TIME_LAST_COIN = 1000
+local TIME_LAST_ASTEROID = 1000
+local TIME_LAST_BOMB = 1000
 
-local TIME_LAST_VELOCITY_INCREASE = 2000
+local TIME_LAST_VELOCITY_INCREASE = 1000
 
 local TIME_LAST_FINALBOSS_SHOOT = 4000
 local TIME_LAST_FINALBOSS_MOVE = 1000
@@ -153,6 +162,8 @@ local timeLastBird
 local timeLastDiamond
 local timeLastCoin
 local timeLastCan
+local timeLastAsteroid
+local timeLastBomb
 local level
 local player1
 local player2
@@ -216,6 +227,9 @@ local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
 local miss1Sound = audio.loadSound("sounds/miss.mp3");
 local miss2Sound = audio.loadSound("sounds/miss2.mp3");
 local canSound = audio.loadSound("sounds/can.mp3");
+local asteroidSound = audio.loadSound("sounds/asteroid.mp3");
+local bombSound = audio.loadSound("sounds/bomb.mp3");
+local bomb2Sound = audio.loadSound("sounds/bomb2.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -403,7 +417,7 @@ function initializeGameScreen()
       end
       inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
     end
-    
+
     if customPlayerAlreadyCaptured then
       paddle = display.newImageRect("imageTmp.png",system.DocumentsDirectory,60,60)
     else
@@ -486,6 +500,8 @@ function initializeTimers(event)
   timeLastDiamond = TIME_LAST_DIAMOND + event.time
   timeLastCoin = TIME_LAST_COIN + event.time
   timeLastCan = TIME_LAST_CAN + event.time
+  timeLastAsteroid = TIME_LAST_ASTEROID + event.time
+  timeLastBomb = TIME_LAST_BOMB + event.time
 end
 
 function gameListeners(event)
@@ -533,50 +549,50 @@ local function onFinalBossCollision(event)
       finalBossSprites.config.currentHits = finalBossSprites.config.currentHits - 1
       -- Boss defeated
       local isBossDefeated = finalBossSprites.config.currentHits <= 0
-      
+
       if isBossDefeated then
         gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
         gameListeners("remove")
         paddle:setFillColor( 1, 1, 1 )
         timer.performWithDelay(1, function()
-        ball.gravityScale = 0
-        ball:setLinearVelocity(0,0 )
-        ball.v = 0
-        ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
-        paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
-        audio.play(finalBoss2Sound)
-        theKing("dance")
-        killObject(wallTopFinalBoss)
-        gameListenersFinalBoss("remove")
-        audio.stop(backgroundMusicChannel)
-        audio.play(finalBossDefeatedSound)
-        increaseScore(1000)
-        inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
-        killObject(finalBossSprites)
-        finalBossSprites = nil
-        timer.performWithDelay(4000, function()
-            finalBossStage = false
-            resetTimers = true
-            if gameEnded() then
-              if score > loadedSettings.highScore then
-                loadedSettings.highScore = score
-                loadsave.saveTable( loadedSettings, "settings.json" )
-              end 
-              transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = endScreen});
-            else
-              level = level+1
-              backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
-              gameListeners("add")
-              inGameText("Level " .. level, TEXT_TYPE.STATIC, "white")
-              ball.gravityScale = 1
-              if (mRandom() <0.5) then
-                ball:applyAngularImpulse( mRandom(200, 300) )
-              else
-                ball:applyAngularImpulse( mRandom(-300, -200) )
-              end
-            end
+            ball.gravityScale = 0
+            ball:setLinearVelocity(0,0 )
+            ball.v = 0
+            ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+            paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
+            audio.play(finalBoss2Sound)
+            theKing("dance")
+            killObject(wallTopFinalBoss)
+            gameListenersFinalBoss("remove")
+            audio.stop(backgroundMusicChannel)
+            audio.play(finalBossDefeatedSound)
+            increaseScore(1000)
+            inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
+            killObject(finalBossSprites)
+            finalBossSprites = nil
+            timer.performWithDelay(4000, function()
+                finalBossStage = false
+                resetTimers = true
+                if gameEnded() then
+                  if score > loadedSettings.highScore then
+                    loadedSettings.highScore = score
+                    loadsave.saveTable( loadedSettings, "settings.json" )
+                  end 
+                  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = endScreen});
+                else
+                  level = level+1
+                  backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
+                  gameListeners("add")
+                  inGameText("Level " .. level, TEXT_TYPE.STATIC, "white")
+                  ball.gravityScale = 1
+                  if (mRandom() <0.5) then
+                    ball:applyAngularImpulse( mRandom(200, 300) )
+                  else
+                    ball:applyAngularImpulse( mRandom(-300, -200) )
+                  end
+                end
+              end)
           end)
-        end)
       end
     end
   end
@@ -614,11 +630,11 @@ end
 
 
 function gameplayFinalBoss(event) 
+
   local function finalBossMove()
     local moveToX
     local moves = {"left", "right", "front", "back"}
     local randomMove = mRandom(1,#moves)
-
 
     if moves[randomMove] == "left" then
       if finalBossSprites.contentWidth /2<finalBossSprites.x then
@@ -669,7 +685,7 @@ function gameplayFinalBoss(event)
         sheetConfig = bullet3SheetConfig
       end
     end 
-   
+
     local bulletSprites = display.newSprite( sheetConfig.myBulletImageSheet, sheetConfig.bulletSequenceData )
     bulletSprites.name = "bullet"
     gameplayItemsGroup:insert(bulletSprites)
@@ -760,13 +776,7 @@ end
 function normalizeVelocity()
   local thisX, thisY = ball:getLinearVelocity() 	
   local lastYPositionWithZeroVelocity = 0 	
-  if thisY > -10 and thisY < 10 then 	
-    lastYPositionWithZeroVelocity = ball.y 	
-    if ((not ballStuck) and (paddle.y - lastYPositionWithZeroVelocity < 200) and (paddle.x==paddle.contentWidth/2 or paddle.x==_SCREEN_CENTRE_X*2 - paddle.contentWidth/2)) or ((not ballStuck) and (thisX == 0) and (paddle.x==paddle.contentWidth/2 or (paddle.x==(_SCREEN_CENTRE_X*2 - paddle.contentWidth/2))))then 	
-      
-      ballStuck = true 
-    end 	
-  end
+
 
   -- Avoid speed of light velocity :)
   if thisX >MAX_BALL_VELOCITY then
@@ -780,8 +790,18 @@ function normalizeVelocity()
   end
   ball:setLinearVelocity(thisX,thisY )
 
+  if thisY > -10 and thisY < 10 then 	
+    lastYPositionWithZeroVelocity = ball.y 	
+    if ((not ballStuck) and (paddle.y - lastYPositionWithZeroVelocity < 130)  ) then
+      ballStuck = true 
+    end
+  end
+  if 
+  ((not ballStuck) and (thisX == 0) and (paddle.x==paddle.contentWidth/2 or (paddle.x==(_SCREEN_CENTRE_X*2 - paddle.contentWidth/2)))) then
+    ballStuck = true
+  end
 
-  --In case of stuck, unstuck :)
+  --In case of ball stop, unstop :)
   if thisX == 0 and thisY == 0 and not (ball.x == _X_BALLSTARTPOSITION and ball.y == _Y_BALLSTARTPOSITION) then
     ball:setLinearVelocity(40, -400 )
   end
@@ -823,6 +843,15 @@ function gameplay(event)
     spawnCoin()
     timeLastCoin = event.time
   end
+  if event.time-timeLastAsteroid >= mRandom(ASTEROID_SPAWN_MAX, ASTEROID_SPAWN_MAX) and level >=2 and not gameOver() and not playingFinalBoss() then
+    spawnAsteroid()
+    timeLastAsteroid = event.time
+  end
+  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MAX, BOMB_SPAWN_MAX)  and not gameOver() and not playingFinalBoss() then
+    spawnBomb()
+    timeLastBomb = event.time
+  end
+
   if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
     timeLastVelocityIncrease = event.time
     paddle.trans = transition.blink(paddle,{time=500})
@@ -892,12 +921,19 @@ function updateBallVelocity()
 end
 
 function unstuckBall()
-  if(ball.x <= _SCREEN_CENTRE_X) then
-    ball:applyLinearImpulse(20, 20,ball.x,ball.y)
-  else
-    ball:applyLinearImpulse(-20, -20,ball.x,ball.y)
+  local xImpulse = 0 
+  local vx, vy = ball:getLinearVelocity()
+  if (vx == 0) then
+    xImpulse = 10
   end
-  ballStuck = false
+  timer.performWithDelay(1, function()
+      if(ball.x <= _SCREEN_CENTRE_X) then
+        ball:applyLinearImpulse(xImpulse, -5,ball.x,ball.y)
+      else
+        ball:applyLinearImpulse(-xImpulse, -5,ball.x,ball.y)
+      end
+      ballStuck = false
+    end)
 end
 
 function theKing(sequence)
@@ -915,14 +951,14 @@ end
 
 function spawnEnemy()
   local function destroyEnemy(event)
-      if event.phase == "ended" then
-        local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
-        increaseScore(50)
-        audio.play(enemySound)
-        timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
-        transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
-      end
+    if event.phase == "ended" then
+      local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
+      increaseScore(50)
+      audio.play(enemySound)
+      timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
+      transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
     end
+  end
   local rn = mRandom(1,7)
   if selectedPlayer == "Diego" then
     if rn == 2 then 
@@ -951,7 +987,7 @@ function spawnEnemy()
   enemy.y = randomY
   gameplayItemsGroup:insert(enemy)
   gameplayItemsGroup:toFront()
-  local esisteEnemy = physics.queryRegion( randomX, randomY, randomX+enemy.width, randomY+enemy.height )
+  local esisteEnemy = physics.queryRegion( randomX, randomY, randomX+enemy.contentWidth, randomY+enemy.contentHeight )
   if not esisteEnemy then
     enemy.isVisible = true
     enemy.alpha=0.7
@@ -1018,7 +1054,7 @@ end
 
 function spawnCan(x,y,bypassQuery)
   local myCanSprites = display.newSprite( canSheetConfig.myCanImageSheet, canSheetConfig.canSequenceData )
-  physics.addBody( myCanSprites, "static", {density = 1, radius = 15, isSensor = true})
+  physics.addBody( myCanSprites, "static", {density = 1, radius = 18, isSensor = true})
   myCanSprites.name = "can"
   myCanSprites.isVisible = false
   myCanSprites.xScale = 0.7;
@@ -1116,6 +1152,118 @@ function spawnMultiCoins()
     end
   end
 end 
+
+function spawnBomb()
+
+  local bombSprites = display.newSprite( bombSheetConfig.bombImageSheet, bombSheetConfig.bombSequenceData )
+  bombSprites.name = "bomb"
+  bombSprites.xScale = bombSheetConfig.xScale 
+  bombSprites.yScale = bombSheetConfig.yScale
+  bombSprites.isVisible = false
+  local randomX = x or mRandom(bombSprites.contentWidth /2 , _SCREEN_CENTRE_X*2 - bombSprites.contentWidth)
+  local randomY = y or mRandom(bombSprites.contentHeight /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
+  local isQueryRegionOk = physics.queryRegion( randomX, randomY, randomX+bombSprites.contentWidth, randomY+bombSprites.contentHeight )
+
+  if (not isQueryRegionOk) or bypassQuery then
+    bombSprites.isVisible = true
+    physics.addBody(bombSprites, "static", {density = 1.0, friction = 1, bounce = 1.9, radius = 28}) 
+    gameplayItemsGroup:insert(bombSprites)
+    gameplayItemsGroup:toFront()
+    bombSprites.x = randomX
+    bombSprites.y = randomY
+    bombSprites:setSequence("bomb")
+    bombSprites:play()
+    local function onBombCollision(event)
+      if event.phase == "began" then
+        if event.other.name == "ball" or event.other.name == "extraBall" then
+          local explosionSprites = display.newSprite( explosionSheetConfig.explosionImageSheet, explosionSheetConfig.explosionSequenceData )
+          explosionSprites.name = "explosion"
+          explosionSprites.xScale = explosionSheetConfig.xScale 
+          explosionSprites.yScale = explosionSheetConfig.yScale
+          explosionSprites.x = bombSprites.x
+          explosionSprites.y = bombSprites.y
+          explosionSprites:setSequence("explosion" .. mRandom(10)) --1,6,7,8,
+          explosionSprites:play()
+          explosionSprites:addEventListener( "sprite", function(event) if event.phase == "ended" then killObject(explosionSprites) explosionSprites = nil end  end)
+          if mRandom(2) == 1 then
+            audio.play(bombSound)
+          else
+            audio.play(bomb2Sound)
+          end
+          startShake()
+          timer.performWithDelay( 200, stopShake )
+          timer.performWithDelay(1,function()
+              if (bombSprites ~= nil and bombSprites.name)  then
+                physics.removeBody(bombSprites) 
+                killObject(bombSprites)
+                bombSprites = nil
+              end
+            end)
+        end
+      end
+    end
+    bombSprites:addEventListener("collision", onBombCollision);
+  else
+    killObject(bombSprites)
+    bombSprites = nil
+  end
+end
+
+
+
+function spawnAsteroid()
+
+  local asteroidSprites = display.newSprite( asteroidSheetConfig.asteroidImageSheet, asteroidSheetConfig.asteroidSequenceData )
+  asteroidSprites.name = "asteroid"
+
+  local function asteroidGameLogic(event)
+    if asteroidSprites ~= nil and asteroidSprites.x~=nil  and hasCollidedCircle(asteroidSprites,paddle) then     
+      colors.setFillColor( paddle, "green" )
+      killObject(asteroidSprites)
+      asteroidSprites = nil
+      Runtime:removeEventListener( "touch", dragPaddle )
+      local function shakePaddle()
+        paddle.x = paddle.x0 + math.random(-2,2) 
+      end
+      timer.performWithDelay(1, function()
+          paddle.x0 = paddle.x
+          Runtime:addEventListener("enterFrame", shakePaddle)
+        end
+      )
+      timer.performWithDelay(1000, function()
+          if paddle and paddle.name and not gameOver() then
+            paddle:setFillColor( 1,1,1)
+            Runtime:addEventListener( "touch", dragPaddle )
+            Runtime:removeEventListener("enterFrame", shakePaddle)
+          end
+        end
+      )
+    end
+  end
+
+  asteroidSprites.x = mRandom(0,_SCREEN_CENTRE_X*2)
+  asteroidSprites.y = -asteroidSprites.contentHeight*2
+  asteroidSprites.xScale = asteroidSheetConfig.xScale 
+  asteroidSprites.yScale = asteroidSheetConfig.yScale
+  gameplayItemsGroup:insert(asteroidSprites)
+  gameplayItemsGroup:toFront()
+  asteroidSprites:setSequence("asteroid" .. mRandom(6))
+  asteroidSprites:play()
+  audio.play(asteroidSound)
+  timer.performWithDelay(1, function()
+      transition.to(asteroidSprites, { time=2000, 
+          y = _SCREEN_CENTRE_Y*2+asteroidSprites.contentWidth,
+          x = paddle.x,
+          onComplete=function()
+            Runtime:removeEventListener("enterFrame", asteroidGameLogic)
+            killObject(asteroidSprites)
+          end
+        })  
+    end)
+
+  Runtime:addEventListener("enterFrame", asteroidGameLogic)
+end
+
 function spawnBird()
   local sheetConfig 
   if mRandom(2) == 1 then 
@@ -1125,7 +1273,7 @@ function spawnBird()
     sheetConfig = bird2SheetConfig
     sheetConfig.birdtype = "green"
   end
-  
+
   local birdSprites = display.newSprite( sheetConfig.myBirdImageSheet, sheetConfig.birdSequenceData )
   birdSprites.name = "bird"
 
@@ -1150,7 +1298,7 @@ function spawnBird()
   gameplayItemsGroup:toFront()
   birdSprites:setSequence("fly")
   birdSprites:play()
-  transition.to(birdSprites, {time = 3000, x = _SCREEN_CENTRE_X*2+birdSprites.contentWidth, onComplete = killObject})
+  transition.to(birdSprites, {time = sheetConfig.time, x = _SCREEN_CENTRE_X*2+birdSprites.contentWidth, onComplete = killObject})
   birdSprites:addEventListener("touch", onBirdTouch)
 end
 
@@ -1162,7 +1310,7 @@ function spawnBalloon()
   balloonSprite.yScale = 0.7
   physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
   balloonSprite.name = "balloon"
-  balloonSprite.gravityScale = -0.9
+  balloonSprite.gravityScale = -0.8
   gameplayItemsGroup:insert(balloonSprite)
   gameplayItemsGroup:toFront()
   balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
@@ -1369,7 +1517,7 @@ end
 function onTopWallCollision(event)
   if event.other.name == "ball" or event.other.name == "extraBall" then
     if event.phase == "began" then
-      ran = mRandom(3) 
+      ran = mRandom(5) 
       if ran == 1 then
         audio.play(miss1Sound);
       elseif ran == 2 then
@@ -1553,13 +1701,18 @@ end
 
 
 function loadGame(event)
-  selectedPlayer = event.target.name 
+  if event and event.target and event.target.name then
+    selectedPlayer = event.target.name 
+    audio.play(playSound)
+    player1:removeEventListener("tap", loadGame);
+    player2:removeEventListener("tap", loadGame);
+    playerCustom:removeEventListener("tap", loadGame);
+    soundOptionSprite:removeEventListener("tap", soundConfig);
+  else
+    selectedPlayer = "Diego"
+  end
   transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
-  audio.play(playSound)
-  player1:removeEventListener("tap", loadGame);
-  player2:removeEventListener("tap", loadGame);
-  playerCustom:removeEventListener("tap", loadGame);
-  soundOptionSprite:removeEventListener("tap", soundConfig);
+
 end
 
 
