@@ -169,6 +169,17 @@ function _M.setTextColor(object, color)
     end
 end
 
+function _M.setTintColor(object, color)  
+    if color then
+      local rgb = colors[color]
+      if rgb then
+          object:setTintColor(unpack(rgb))
+      else
+          error('No such color: ' .. tostring(color), 2)
+      end
+    end
+end
+
 function _M.setStrokeColor(object, color)  
     local rgb = colors[color]
     if rgb then

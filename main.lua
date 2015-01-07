@@ -17,6 +17,7 @@ local utility = require("lib.utility")
 local shake = require "lib.shake"
 local physics = require("physics")
 local loadsave = require( "lib.loadsave" )
+local fontManager = require("lib.fontmanager")		
 
 
 local defaultSettings = require("defaultSettings")
@@ -252,7 +253,8 @@ function showTitleScreen()
   titleScreen.x = _SCREEN_CENTRE_X;
   titleScreen.y = _SCREEN_CENTRE_Y;
 
-
+    
+  
   -- DiegoNik
   local diegoNik = display.newImage("images/diegonik.png")
   diegoNik.x = _SCREEN_CENTRE_X;
@@ -260,12 +262,25 @@ function showTitleScreen()
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
 
+  fontManager.BitmapString:setTintBrackets("@[","@]") 														
+  bms = fontManager.BitmapString:new("font2",60)									
+  bms:setText("diego @[red@]& @[@]Niki") 							
+  bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y+65 ) 																				
+  bms:setAnchor(0.5,0.5)
+  --bms:setJustification(bms.Justify.LEFT) 															
+  bms:show()
+  bms.rotation = 6 																																						
+  bms:setVerticalSpacing(1.2) 																
+  bms:setSpacing(-2) 																				
+  bms:setModifier("curve"):animate(6) 
+
+
   -- Title
-  local title = display.newImage("images/gameTitle.png")
+  --[[local title = display.newImage("images/gameTitle.png")
   title.x = _SCREEN_CENTRE_X;
   title.y = _SCREEN_CENTRE_Y+(_SCREEN_CENTRE_Y/19) ;
   title.xScale = 0.5
-  title.yScale = 0.5
+  title.yScale = 0.5--]]
 
   -- Display play button image
   playBtn = display.newImage("images/giocaButton3.png")
@@ -310,23 +325,35 @@ function playerScreen()
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
+  													
+  bms = fontManager.BitmapString:new("padbm",26)									
+  bms:setText("Select a player") 							
+  bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y-60 ) 																				
+  bms:setAnchor(0.5,0.5)
+  --bms:setJustification(bms.Justify.LEFT) 															
+  bms:show()																																				
+  bms:setVerticalSpacing(1.2) 																
+  bms:setSpacing(-4) 																				
+  --bms:setModifier("wobble"):animate(1) 
+  
+  
   player1 = display.newImage("images/player1.png")
   player1.xScale = 0.8
   player1.yScale = 0.8
   player1.x  = 60
-  player1.y  = 250
+  player1.y  = 303
   player1.name = "Diego"
   player2 = display.newImage("images/player2.png")
   player2.xScale = 0.8
   player2.yScale = 0.8
   player2.x  = 160
-  player2.y  = 250
+  player2.y  = 303
   player2.name = "Nicola"
   playerCustom = display.newImage("images/playerCustom.png")
   playerCustom.xScale = 0.8
   playerCustom.yScale = 0.8
   playerCustom.x  = 260
-  playerCustom.y  = 250
+  playerCustom.y  = 303
   playerCustom.name = "Custom"
   player1:addEventListener("tap",loadGame)
   player2:addEventListener("tap",loadGame)
@@ -338,7 +365,7 @@ function endScreen()
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
-  textBoxScreen("CONGRATULAZIONI!", "Punti: "..score)
+  textBoxScreen("CONGRATULAZIONI!", "Score: "..score)
 end
 
 
@@ -424,7 +451,7 @@ function initializeGameScreen()
         paddle.name = "paddle"
         paddle:addEventListener("tap", startGame)
       end
-      inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
+      inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,30)
     end
 
     if customPlayerAlreadyCaptured then
@@ -443,7 +470,7 @@ function initializeGameScreen()
   paddle.name = "paddle"
 
   --Score
-  local scoreText = display.newText("Punti: ", 22, 11, "Arial", 14)
+  local scoreText = display.newText("Score: ", 22, 11, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
   scoreNum = display.newText("0", 60, 11, "Arial", 14)
   scoreNum:setTextColor(255, 255, 255, 255)
@@ -455,7 +482,7 @@ function initializeGameScreen()
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
 
   if selectedPlayer ~="Custom" or customPlayerAlreadyCaptured then
-    inGameText("Tap player to play", TEXT_TYPE.STATIC, "yellow",30)
+    inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,30)  
   end
 
   paddle:addEventListener("tap", startGame)
@@ -592,7 +619,7 @@ local function onFinalBossCollision(event)
             audio.stop(backgroundMusicChannel)
             audio.play(levelCompleteSound)
             increaseScore(1000)
-            inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
+            inGameText("Level Complete", TEXT_TYPE.STATIC)
             killObject(finalBossSprites)
             finalBossSprites = nil
             timer.performWithDelay(4000, function()
@@ -608,7 +635,7 @@ local function onFinalBossCollision(event)
                   level = level+1
                   backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
                   gameListeners("add")
-                  inGameText("Level " .. level, TEXT_TYPE.STATIC, "white")
+                  inGameText("Level " .. level, TEXT_TYPE.STATIC)
                   ball.gravityScale = 1
                   if (mRandom() <0.5) then
                     ball:applyAngularImpulse( mRandom(200, 300) )
@@ -907,7 +934,7 @@ function gameplay(event)
       killObject(wallTopFinalBoss)
       killObject(finalBossSprites)
     end 
-    textBoxScreen("GAME OVER", "Punti: "..score)
+    textBoxScreen("GAME OVER", "Score: "..score)
   end    
 
 end
@@ -1376,8 +1403,10 @@ function spawnExtraBall()
   extraBall.alpha=0.7
   extraBall.angularDamping = 2;
   timer.performWithDelay(200, function()
+      if extraBall and extraBall.name then
       physics.addBody( extraBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
-      transition.to(extraBall, {alpha=1})  
+      transition.to(extraBall, {alpha=1}) 
+      end
     end)
   gameplayItemsGroup:insert(extraBall)
   gameplayItemsGroup:toFront()
@@ -1420,7 +1449,7 @@ function spawnFinalBoss()
 
   wallTopFinalBoss = display.newImage('images/wall.png',_SCREEN_CENTRE_X,13)
   physics.addBody( wallTopFinalBoss, "static", {density = 1.0})
-  inGameText("Final Boss",TEXT_TYPE.FINALBOSS,"white")
+  inGameText("Final Boss",TEXT_TYPE.FINALBOSS)
 
   timer.performWithDelay(2500, function()
       local sheetConfig 
@@ -1477,30 +1506,30 @@ function spawnPowerUp()
         audio.play(powerUpSound)
         updatePaddleBounciness()
         increaseScore(100)
-        inGameText(".Bounce.", TEXT_TYPE.POWERUP, "yellow")
+        inGameText(".Bounce.", TEXT_TYPE.POWERUP)
       elseif myPowerUpSprites.name == "powerUp_g" then
         audio.play(powerUpSound)
         increaseScore(1000)
-        inGameText(".1000 Points.", TEXT_TYPE.POWERUP, "skyblue")
+        inGameText("1.000K", TEXT_TYPE.POWERUP,nil,100)
       elseif myPowerUpSprites.name == "powerUp_b" then
         audio.play(ironWallSound)
         addLifeSaver()
         increaseScore(100)
-        inGameText(".Shield.", TEXT_TYPE.POWERUP, "silver")
+        inGameText(".Shield.", TEXT_TYPE.POWERUP)
       elseif myPowerUpSprites.name == "powerUp_P" then
         theKing("laugh")
         addLive()
-        inGameText(".Life.", TEXT_TYPE.POWERUP, "red")
+        inGameText(".Life.", TEXT_TYPE.POWERUP)
       elseif myPowerUpSprites.name == "powerUp_B" then
         audio.play(powerUpSound)
         spawnExtraBall()
         increaseScore(100)
-        inGameText(".ExtraBall.", TEXT_TYPE.POWERUP, "gold")
+        inGameText(".ExtraBall.", TEXT_TYPE.POWERUP)
       elseif myPowerUpSprites.name == "powerUp_S" then
         audio.play(powerUpSound)
         updateBallVelocity()
         increaseScore(100)
-        inGameText(".Speed.", TEXT_TYPE.POWERUP, "orange")
+        inGameText(".Speed.", TEXT_TYPE.POWERUP)
       end
 
       killObject(myPowerUpSprites)
@@ -1584,51 +1613,75 @@ end
 function inGameText(text, textType, color, size)
 
   if textType == TEXT_TYPE.SCORE then
-    local points_Text = display.newText(text, 10, 100,"ComicSansMS-Bold",25)
-    points_Text.anchorX = 0
-    points_Text.anchorY = 0
-    colors.setTextColor(points_Text, color or 'yellow')
-    transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})
+    local points_Text = fontManager.BitmapString:new("font2",size or 40)									
+    points_Text:setText(text) 							
+    points_Text:moveTo(10,100 ) 																				
+    points_Text:setAnchor(0,0)													
+    colors.setTintColor(points_Text, color)
+    points_Text:show()																					 
+    transition.to(points_Text,{time = 1500, alpha = 0.6, y = 25, onComplete=killObject})
   elseif textType == TEXT_TYPE.COMBO then
-    local points_Text = display.newText(text, 190, 100,"ComicSansMS-Bold",25)
-    points_Text.anchorX = 0
-    points_Text.anchorY = 0
-    colors.setTextColor(points_Text, color or 'silver')
-    transition.to(points_Text,{time = 1500, alpha = 0, y = 25, onComplete=killObject})  
+    local points_Text = fontManager.BitmapString:new("font2",size or 30)									
+    points_Text:setText(text) 							
+    points_Text:moveTo(190,100 ) 																				
+    points_Text:setAnchor(0,0)
+    points_Text:setJustification(points_Text.Justify.RIGHT)
+    colors.setTintColor(points_Text, color)
+    points_Text:show()		
+    points_Text:setModifier("curve"):animate(2)
+    transition.to(points_Text,{time = 1500, y = 25, onComplete=killObject})  
   elseif textType == TEXT_TYPE.POWERUP then
-    local powerUp_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 50)
-    colors.setTextColor(powerUp_Text, color)
-    transition.to(powerUp_Text,{time = 500, 
+    local powerUp_Text = fontManager.BitmapString:new("retrofont",size or 60)									
+    powerUp_Text:setText(text) 
+    powerUp_Text:setVerticalSpacing(1.2) 																
+    powerUp_Text:setSpacing(-5) 
+    colors.setTintColor(powerUp_Text,color)
+    powerUp_Text:moveTo(_SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y)	
+    powerUp_Text:show() 
+    transition.to(powerUp_Text,{time = 800, 
         x = _SCREEN_CENTRE_X, 
         onComplete = function()  
-          transition.to(powerUp_Text,{time = 500, 
+          transition.to(powerUp_Text,{time = 800, 
               alpha = 0, 
               y = 0, 
               onComplete=killObject})
         end})
   elseif textType == TEXT_TYPE.FINALBOSS then
-    local finalBoss_Text = display.newText(text, _SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 40)
-    colors.setTextColor(finalBoss_Text, color)
+    local finalBoss_Text = fontManager.BitmapString:new("padbm",size or 30)									
+    finalBoss_Text:setText(text) 
+    finalBoss_Text:setVerticalSpacing(1.2) 																
+    finalBoss_Text:setSpacing(-3) 	
+    finalBoss_Text:moveTo(_SCREEN_CENTRE_X*2, _SCREEN_CENTRE_Y )																															
+    colors.setTintColor(static_text, color)
+    finalBoss_Text:show()
     transition.to(finalBoss_Text,{time = 2000, 
         x = _SCREEN_CENTRE_X, 
         onComplete = function()  
           transition.to(finalBoss_Text,{time = 2000, 
               alpha = 0, 
-              y = 0, 
+              y = 0.6, 
               onComplete=killObject})
         end})
   elseif textType == TEXT_TYPE.STATIC then
-    local static_text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y,"ComicSansMS-Bold",size or 40)
-    colors.setTextColor(static_text, color)
-
+    local static_text = fontManager.BitmapString:new("padbm",size or 30)									
+    static_text:setText(text) 
+    static_text:setVerticalSpacing(1.2) 																
+    static_text:setSpacing(-10) 	
+    static_text:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y ) 																																
+    colors.setTintColor(static_text, color)
+    static_text:show()
     transition.to(static_text,{time = 2000, 
-        alpha = 0, 
+        alpha = 0.5, 
         y = 0, 
         onComplete=killObject})
 
-  elseif textType == TEXT_TYPE.GOAL then
-    local goal_Text = display.newText(text, _SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2),"ComicSansMS-Bold",size or 50)
-    colors.setTextColor(goal_Text, color or 'yellow')
+elseif textType == TEXT_TYPE.GOAL then
+    local goal_Text = fontManager.BitmapString:new("font2",size or 60)									
+    goal_Text:setText(text) 							
+    goal_Text:moveTo(_SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2) ) 																				
+    colors.setTintColor(goal_Text, color)
+    goal_Text:show()																					
+    goal_Text:setModifier("jagged"):animate(2) 
     transition.to(goal_Text,{time = 1000, 
         alpha = 0, 
         y = 0, 
