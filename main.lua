@@ -6,7 +6,7 @@
 --require('mobdebug').start() 
 
 local DEBUG = false
-local SKIP_MAIN_SCREEN = true
+local SKIP_MAIN_SCREEN = false
 
 
 display.setStatusBar(display.HiddenStatusBar);
@@ -98,8 +98,8 @@ local VELOCITY_INCREASE_MIN = 8000
 local VELOCITY_INCREASE_MAX = 10000 
 local ASTEROID_SPAWN_MIN = 3000   
 local ASTEROID_SPAWN_MAX = 7000
-local BOMB_SPAWN_MIN = 1000 
-local BOMB_SPAWN_MAX = 2000
+local BOMB_SPAWN_MIN = 8000 
+local BOMB_SPAWN_MAX = 10000
 
 local COIN_SPAWN_MIN = 10000 
 local COIN_SPAWN_MAX = 12000
@@ -124,8 +124,12 @@ local FINALBOSS_MOVE_MIN = 1000
 local FINALBOSS_MOVE_MAX = 2000
 
 local SCORE_FINAL_BOSS_STAGE = 10000
-local DELTA_SCORE_FINAL_BOSS_STAGE = 10000
+local DELTA_SCORE_FINAL_BOSS_STAGE = 15000
 
+local FINALBOSS1_HITS = 8
+local FINALBOSS2_HITS = 10
+local FINALBOSS3_HITS = 15
+ 
 local paddle
 local ball
 local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
@@ -170,6 +174,7 @@ local player2
 local playerCustom
 local selectedPlayer
 local customPlayerAlreadyCaptured = false
+local finalBossCurrentHits
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -211,8 +216,12 @@ local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
 local whistle2Sound = audio.loadSound("sounds/whistle2.mp3");
 local enemySound = audio.loadSound("sounds/ow.mp3");
-local finalBossSound = audio.loadSound("sounds/owfinalboss.mp3");
-local finalBoss2Sound = audio.loadSound("sounds/ow2finalboss.mp3");
+local finalBoss1Sound = audio.loadSound("sounds/owfinalboss1.mp3");
+local finalBoss1DefSound = audio.loadSound("sounds/ow2finalboss1.mp3");
+local finalBoss2Sound = audio.loadSound("sounds/owfinalboss2.mp3");
+local finalBoss2DefSound = audio.loadSound("sounds/ow2finalboss2.mp3");
+local finalBoss3Sound = audio.loadSound("sounds/owfinalboss3.mp3");
+local finalBoss3DefSound = audio.loadSound("sounds/ow2finalboss3.mp3");
 local powerUpSound = audio.loadSound("sounds/powerup.wav");
 local newLiveSound = audio.loadSound("sounds/newLive.wav");
 local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
@@ -223,7 +232,7 @@ local diamondSound = audio.loadSound("sounds/diamond.mp3");
 local balloonSound = audio.loadSound("sounds/balloonPop.mp3");
 local birdSound = audio.loadSound("sounds/bird.mp3");
 local playSound = audio.loadSound("sounds/gioca.mp3");
-local finalBossDefeatedSound = audio.loadSound("sounds/finalbossdefeated.mp3");
+local levelCompleteSound = audio.loadSound("sounds/finalbossdefeated.mp3");
 local miss1Sound = audio.loadSound("sounds/miss.mp3");
 local miss2Sound = audio.loadSound("sounds/miss2.mp3");
 local canSound = audio.loadSound("sounds/can.mp3");
@@ -525,6 +534,22 @@ end
 local function onFinalBossCollision(event)
   if event.phase == "began" then
     if event.other.name == "ball" then
+      local finalBossSound
+      local finalBossSoundDefeated
+      local finalBossHits 
+      if level == 1 then
+        finalBossSound  =  finalBoss1Sound
+        finalBossSoundDefeated = finalBoss1DefSound 
+        finalBossHits = FINALBOSS1_HITS
+      elseif level == 2 then
+        finalBossSound  =  finalBoss2Sound
+        finalBossSoundDefeated = finalBoss2DefSound 
+        finalBossHits = FINALBOSS2_HITS
+      elseif level == 3 then
+        finalBossSound  =  finalBoss3Sound
+        finalBossSoundDefeated = finalBoss3DefSound
+        finalBossHits = FINALBOSS3_HITS
+      end
       audio.play(finalBossSound)
       startShake()
       timer.performWithDelay( 500, stopShake )
@@ -545,10 +570,10 @@ local function onFinalBossCollision(event)
           end
         end
       )
-      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (1 / finalBossSprites.config.hits )
-      finalBossSprites.config.currentHits = finalBossSprites.config.currentHits - 1
+      wallTopFinalBoss.xScale = wallTopFinalBoss.xScale - (1 / finalBossHits )
+      finalBossCurrentHits = finalBossCurrentHits - 1
       -- Boss defeated
-      local isBossDefeated = finalBossSprites.config.currentHits <= 0
+      local isBossDefeated = finalBossCurrentHits <= 0
 
       if isBossDefeated then
         gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
@@ -560,12 +585,12 @@ local function onFinalBossCollision(event)
             ball.v = 0
             ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
             paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
-            audio.play(finalBoss2Sound)
+            audio.play(finalBossSoundDefeated)
             theKing("dance")
             killObject(wallTopFinalBoss)
             gameListenersFinalBoss("remove")
             audio.stop(backgroundMusicChannel)
-            audio.play(finalBossDefeatedSound)
+            audio.play(levelCompleteSound)
             increaseScore(1000)
             inGameText("Level Complete", TEXT_TYPE.STATIC, "white")
             killObject(finalBossSprites)
@@ -602,6 +627,7 @@ function gameListenersFinalBoss(event)
   if event == "add" then
     Runtime:addEventListener( "enterFrame", gameplayFinalBoss )
     finalBossSprites:addEventListener("collision", onFinalBossCollision)
+    print("removed")
     wallTopRight:removeEventListener("collision", onTopWallCollision);
     wallTopLeft:removeEventListener("collision", onTopWallCollision);
 
@@ -847,7 +873,7 @@ function gameplay(event)
     spawnAsteroid()
     timeLastAsteroid = event.time
   end
-  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MAX, BOMB_SPAWN_MAX)  and not gameOver() and not playingFinalBoss() then
+  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MAX, BOMB_SPAWN_MAX)  and  level >=3 and not gameOver() and not playingFinalBoss() then
     spawnBomb()
     timeLastBomb = event.time
   end
@@ -1400,15 +1426,17 @@ function spawnFinalBoss()
       local sheetConfig 
       if level == 1 then 
         sheetConfig = finalBoss1SheetConfig
+        finalBossCurrentHits = FINALBOSS1_HITS
       elseif level==2 then
         sheetConfig = finalBoss2SheetConfig
-      else
+        finalBossCurrentHits = FINALBOSS2_HITS
+      elseif level==3 then
         sheetConfig = finalBoss3SheetConfig
+        finalBossCurrentHits = FINALBOSS3_HITS
       end
 
       finalBossSprites = display.newSprite( sheetConfig.finalBossImageSheet, sheetConfig.finalBossSequenceData )
       finalBossSprites.config = sheetConfig
-      sheetConfig.currentHits = sheetConfig.hits
       physics.addBody( finalBossSprites, "static", {density = 1.0,radius = sheetConfig.radius})
       finalBossSprites.x = mRandom(finalBossSprites.width,_SCREEN_CENTRE_X*2-finalBossSprites.width); 
       finalBossSprites.y = finalBossSprites.height+20

@@ -41,6 +41,4 @@ M.finalBossSequenceData = finalBoss2SequenceData
 M.xScale = 1.3
 M.yScale = 1.3
 M.radius = 28
-M.hits = 14
-M.currentHits = 14
 return M
