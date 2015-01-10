@@ -41,6 +41,7 @@ local canSheetConfig = require("spritesheets.canspritesheetconfig")
 local explosionSheetConfig = require("spritesheets.explosionspritesheetconfig")
 local asteroidSheetConfig = require("spritesheets.asteroidspritesheetconfig")
 local bombSheetConfig = require("spritesheets.bombspritesheetconfig")
+local uiSheetConfig = require("spritesheets.uispritesheetconfig")
 
 mRandom = math.random
 
@@ -176,6 +177,8 @@ local playerCustom
 local selectedPlayer
 local customPlayerAlreadyCaptured = false
 local finalBossCurrentHits
+local spawnBalloon
+local joyEffect
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -252,7 +255,8 @@ function showTitleScreen()
   local titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
   titleScreen.x = _SCREEN_CENTRE_X;
   titleScreen.y = _SCREEN_CENTRE_Y;
-
+  
+  local joyGroup = display.newGroup()
     
   
   -- DiegoNik
@@ -264,15 +268,15 @@ function showTitleScreen()
 
   fontManager.BitmapString:setTintBrackets("@[","@]") 														
   bms = fontManager.BitmapString:new("font2",60)									
-  bms:setText("diego @[red@]& @[@]Niki") 							
-  bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y+65 ) 																				
+  bms:setText("Diego @[red@]& @[@]Niki") 							
+  bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y+55 ) 																				
   bms:setAnchor(0.5,0.5)
   --bms:setJustification(bms.Justify.LEFT) 															
   bms:show()
   bms.rotation = 6 																																						
   bms:setVerticalSpacing(1.2) 																
   bms:setSpacing(-2) 																				
-  bms:setModifier("curve"):animate(6) 
+  bms:setModifier("wobble"):animate(1) 
 
 
   -- Title
@@ -289,31 +293,76 @@ function showTitleScreen()
   playBtn.name = "playbutton";
 
   --Sound option
-  soundOptionSprite = display.newSprite( sheetConfig.myImageSheet, sheetConfig.soundOptionSequenceData )
-  soundOptionSprite.anchorX = 0
-  soundOptionSprite.anchorY = 1
-  soundOptionSprite.x = 2;
-  soundOptionSprite.y = _SCREEN_CENTRE_Y*2 ; 
-  soundOptionSprite.xScale = 0.2
-  soundOptionSprite.yScale = 0.2
+  local uiSprite = display.newSprite( uiSheetConfig.uiImageSheet, uiSheetConfig.uiSequenceData )
+  uiSprite.anchorX = 0
+  uiSprite.anchorY = 1
+  uiSprite.x = 2;
+  uiSprite.y = _SCREEN_CENTRE_Y*2 ; 
+  uiSprite.xScale = 0.25
+  uiSprite.yScale = 0.25
 
   if backgroundMusicEnabled then
     audio.setVolume(MASTER_VOLUME)
-    soundOptionSprite:setFrame(2)
+    uiSprite:setFrame(24)
   else
     audio.setVolume(0)
-    soundOptionSprite:setFrame(1)
+    uiSprite:setFrame(25)
   end
 
   backgroundMusicChannel = audio.play(backgroundIntroMusic, {loops =- 1});
 
   -- Insert background and button into group
   titleScreenGroup:insert(titleScreen);
-  titleScreenGroup:insert(playBtn);
-
+  --titleScreenGroup:insert(playBtn);
+  
   -- Make play button interactive
   playBtn:addEventListener("tap", choosePlayer);
-  soundOptionSprite:addEventListener("tap", soundConfig);
+  uiSprite:addEventListener("tap", function() 
+                                            if backgroundMusicEnabled then
+                                              audio.setVolume(0)
+                                              backgroundMusicEnabled = false
+                                              uiSprite:setFrame(25)
+                                            else
+                                              backgroundMusicEnabled = true
+                                              audio.setVolume(MASTER_VOLUME)
+                                              uiSprite:setFrame(24)
+                                            end
+                                            loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
+                                            loadsave.saveTable( loadedSettings, "settings.json" )
+                                          end)
+
+  local timerEffect = 1000
+  local tmpTimer = 1000
+  local function spawnBalloon()
+    local balloonSprite = display.newSprite( balloonSheetConfig.myImageSheet, balloonSheetConfig.balloonSequenceData )
+    balloonSprite:setFrame(mRandom(35))
+    balloonSprite.xScale = 0.6
+    balloonSprite.yScale = 0.6
+    balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
+    balloonSprite.y = _SCREEN_CENTRE_Y*2+balloonSprite.contentWidth
+    physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
+    balloonSprite.name = "balloonJoy"
+    joyGroup:insert(balloonSprite)
+    balloonSprite.gravityScale = -0.3
+    local function balloonGameLogic(event)
+      if balloonSprite ~= nil then
+        if balloonSprite.y and balloonSprite.y < _SCREEN_TOP then
+          Runtime:removeEventListener("enterFrame", balloonGameLogic)
+          killObject(balloonSprite)
+          balloonSprite = nil
+        end
+      end
+    end
+    Runtime:addEventListener("enterFrame", balloonGameLogic)
+    end
+    joyEffect =  function(event)
+   if event.time > tmpTimer then
+      spawnBalloon()
+      tmpTimer = event.time + timerEffect
+    end
+  end
+  Runtime:addEventListener("enterFrame", joyEffect)
+  
   if SKIP_MAIN_SCREEN then
     loadGame()
   end 
@@ -326,14 +375,14 @@ function playerScreen()
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
   													
-  bms = fontManager.BitmapString:new("padbm",26)									
+  bms = fontManager.BitmapString:new("testfont",65)									
   bms:setText("Select a player") 							
   bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y-60 ) 																				
   bms:setAnchor(0.5,0.5)
   --bms:setJustification(bms.Justify.LEFT) 															
   bms:show()																																				
   bms:setVerticalSpacing(1.2) 																
-  bms:setSpacing(-4) 																				
+  bms:setSpacing(-2) 																				
   --bms:setModifier("wobble"):animate(1) 
   
   
@@ -365,7 +414,7 @@ function endScreen()
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
-  textBoxScreen("CONGRATULAZIONI!", "Score: "..score)
+  showTextBox("CONGRATULAZIONI!", "Score: "..score)
 end
 
 
@@ -451,7 +500,7 @@ function initializeGameScreen()
         paddle.name = "paddle"
         paddle:addEventListener("tap", startGame)
       end
-      inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,30)
+      inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,60)
     end
 
     if customPlayerAlreadyCaptured then
@@ -482,7 +531,7 @@ function initializeGameScreen()
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
 
   if selectedPlayer ~="Custom" or customPlayerAlreadyCaptured then
-    inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,30)  
+    inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,60)  
   end
 
   paddle:addEventListener("tap", startGame)
@@ -934,7 +983,7 @@ function gameplay(event)
       killObject(wallTopFinalBoss)
       killObject(finalBossSprites)
     end 
-    textBoxScreen("GAME OVER", "Score: "..score)
+    showTextBox("GAME OVER", "Score: "..score)
   end    
 
 end
@@ -1355,7 +1404,7 @@ function spawnBird()
   birdSprites:addEventListener("touch", onBirdTouch)
 end
 
-function spawnBalloon()
+spawnBalloon =  function()
   local balloonSprite = display.newSprite( balloonSheetConfig.myImageSheet, balloonSheetConfig.balloonSequenceData )
   --local balloon = display.newImageRect( "images/balloon.png",40,40 )
   balloonSprite:setFrame(mRandom(35))
@@ -1628,7 +1677,7 @@ function inGameText(text, textType, color, size)
     points_Text:setJustification(points_Text.Justify.RIGHT)
     colors.setTintColor(points_Text, color)
     points_Text:show()		
-    points_Text:setModifier("curve"):animate(2)
+    --points_Text:setModifier("curve"):animate(2)
     transition.to(points_Text,{time = 1500, y = 25, onComplete=killObject})  
   elseif textType == TEXT_TYPE.POWERUP then
     local powerUp_Text = fontManager.BitmapString:new("retrofont",size or 60)									
@@ -1663,10 +1712,10 @@ function inGameText(text, textType, color, size)
               onComplete=killObject})
         end})
   elseif textType == TEXT_TYPE.STATIC then
-    local static_text = fontManager.BitmapString:new("padbm",size or 30)									
+    local static_text = fontManager.BitmapString:new("testfont",size or 60)									
     static_text:setText(text) 
     static_text:setVerticalSpacing(1.2) 																
-    static_text:setSpacing(-10) 	
+    static_text:setSpacing(-3) 	
     static_text:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y ) 																																
     colors.setTintColor(static_text, color)
     static_text:show()
@@ -1708,43 +1757,62 @@ function dragPaddle(event)
   end
 end 
 
-function textBoxScreen(title, message)
+function showTextBox(title, message)
 
   -- Display text box with win or lose message
-  textBox = display.newImage("images/textBox.png");
+  --textBox = display.newImage("images/textBox.png");
+  textBox = display.newSprite( uiSheetConfig.uiImageSheet, uiSheetConfig.uiSequenceData )
+  textBox:setFrame(33)
   textBox.x = _SCREEN_CENTRE_X;
   textBox.y = _SCREEN_CENTRE_Y;
+  textBox.xScale= 2.2
+  textBox.yScale= 2.2
+
+  --                        
+  conditionDisplay = fontManager.BitmapString:new("testfont",30)									
+  conditionDisplay:setText(title) 							
+  conditionDisplay:moveTo(display.contentCenterX,display.contentCenterY - 40 ) 																				
+  conditionDisplay:setAnchor(0.5,0.5)														                                                              
+  conditionDisplay:setVerticalSpacing(1.2) 																
+  --conditionDisplay:setSpacing(-2) 	
+  --colors.setTintColor(conditionDisplay,"black")
 
   -- Win or Lose Text
-  conditionDisplay = display.newText(title, 0, 0, "Arial", 38);
+  --[[conditionDisplay = display.newText(title, 0, 0, "Arial", 38);
   conditionDisplay:setTextColor(255,255,255,255);
   conditionDisplay.xScale = 0.5;
   conditionDisplay.yScale = 0.5;
   conditionDisplay.x = display.contentCenterX;
-  conditionDisplay.y = display.contentCenterY - 15;
+  conditionDisplay.y = display.contentCenterY - 15;--]]
 
   --Try Again or Congrats Text
-  messageText = display.newText(message, 0, 0, "Arial", 24);
-  messageText:setTextColor(255,255,255,255);
-  messageText.xScale = 0.5;
-  messageText.yScale = 0.5;
+  messageText = display.newText(message, 0, 0, "Arial", 17);
+  colors.setTextColor(messageText, "black");
   messageText.x = display.contentCenterX;
-  messageText.y = display.contentCenterY + 15;
+  messageText.y = display.contentCenterY -5;
 
   --Try Again or Congrats Text
-  bestScoreText = display.newText("Record: "..loadedSettings.highScore, 0, 0, "Arial", 24);
-  bestScoreText:setTextColor(255,255,255,255);
-  bestScoreText.xScale = 0.5;
-  bestScoreText.yScale = 0.5;
+  bestScoreText = display.newText("Record: "..loadedSettings.highScore, 0, 0, "Arial", 17);
+  colors.setTextColor(bestScoreText, "black");
   bestScoreText.x = display.contentCenterX;
-  bestScoreText.y = display.contentCenterY + 30;
-
+  bestScoreText.y = display.contentCenterY + 20;
+  
+  --Reload
+  local reload = display.newSprite( uiSheetConfig.uiImageSheet, uiSheetConfig.uiSequenceData )
+  reload:setFrame(20)
+  reload.xScale= 0.3
+  reload.yScale= 0.3
+  reload.x = display.contentCenterX;
+  reload.y = display.contentCenterY + 70;
+  
+  
   -- Add all elements into a new group
   textBoxGroup = display.newGroup();
   textBoxGroup:insert(textBox);
   textBoxGroup:insert(conditionDisplay);
   textBoxGroup:insert(bestScoreText)
   textBoxGroup:insert(messageText);
+  textBoxGroup:insert(reload);
 
   -- Make text box interactive
   textBox:addEventListener("tap", restart);
@@ -1755,40 +1823,22 @@ function restart()
   textBox:removeEventListener("tap", restart);
 end
 
-
-function soundConfig()
-  if backgroundMusicEnabled then
-    audio.setVolume(0)
-    backgroundMusicEnabled = false
-    soundOptionSprite:setFrame(1)
-  else
-    backgroundMusicEnabled = true
-    audio.setVolume(MASTER_VOLUME)
-    soundOptionSprite:setFrame(2)
-  end
-  loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
-  loadsave.saveTable( loadedSettings, "settings.json" )
-end
-
-
 function choosePlayer(event)
 
   transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = playerScreen});
   audio.play(playSound)
   playBtn:removeEventListener("tap", choosePlayer);
-  soundOptionSprite:removeEventListener("tap", soundConfig);
-
 end
 
 
 function loadGame(event)
+  Runtime:removeEventListener("enterFrame", joyEffect)
   if event and event.target and event.target.name then
     selectedPlayer = event.target.name 
     audio.play(playSound)
     player1:removeEventListener("tap", loadGame);
     player2:removeEventListener("tap", loadGame);
     playerCustom:removeEventListener("tap", loadGame);
-    soundOptionSprite:removeEventListener("tap", soundConfig);
   else
     selectedPlayer = "Diego"
   end
