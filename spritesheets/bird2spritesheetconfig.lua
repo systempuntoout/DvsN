@@ -16,7 +16,7 @@ local bird2SequenceData = {
 
 M.myBirdImageSheet = myBird2ImageSheet
 M.birdSequenceData = bird2SequenceData
-M.xScale = 0.1
-M.yScale = 0.1
-M.time = 4500
+M.xScale = 0.5
+M.yScale = 0.5
+M.time = 2000
 return M

@@ -268,7 +268,7 @@ function showTitleScreen()
 
   fontManager.BitmapString:setTintBrackets("@[","@]") 														
   bms = fontManager.BitmapString:new("font2",60)									
-  bms:setText("Diego @[red@]& @[@]Niki") 							
+  bms:setText("@[@]diego @[red@]& @[@]niki") 							
   bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y+55 ) 																				
   bms:setAnchor(0.5,0.5)
   --bms:setJustification(bms.Justify.LEFT) 															
@@ -441,11 +441,11 @@ function initializeGameScreen()
   -- The king
   theKingSprites = display.newSprite( theKingSheetConfig.theKingImageSheet, theKingSheetConfig.theKingSequenceData )
   theKingSprites.x = _SCREEN_CENTRE_X
-  theKingSprites.y = _SCREEN_CENTRE_Y-20
+  theKingSprites.y = _SCREEN_CENTRE_Y-15
   gameScreenGroup:insert(theKingSprites)
   theKingSprites.isVisible = false
-  theKingSprites.xScale = 2
-  theKingSprites.yScale = 2
+  theKingSprites.xScale = 1.3
+  theKingSprites.yScale = 1.3
   local function spriteListener( event )
     if event.phase == "ended" then
       transition.to(theKingSprites,{time = 500, alpha = 0})
@@ -1042,7 +1042,7 @@ function theKing(sequence)
   local lock = false
   if not lock then
     lock = true
-    theKingSprites.alpha = 0.3
+    theKingSprites.alpha = 0.6
     theKingSprites:toFront()
     theKingSprites.isVisible = true
     theKingSprites:setSequence(sequence)
@@ -1054,11 +1054,18 @@ end
 function spawnEnemy()
   local function destroyEnemy(event)
     if event.phase == "ended" then
-      local ballVelocityX, ballVelocityY = event.other:getLinearVelocity()
       increaseScore(50)
       audio.play(enemySound)
-      timer.performWithDelay(2, function() if (event.target~=nil and event.target.name) then physics.removeBody(event.target) end  end)
-      transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=killObject })
+      if event.target then
+        event.target:removeEventListener("collision", destroyEnemy);
+        timer.performWithDelay(1, function() 
+                                      if event.target then 
+                                          physics.removeBody(event.target)
+                                      end
+                                  end 
+                              )
+      end
+      transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=function() if event.target ~= nil then display.remove(event.target); event.target = nil end end })
     end
   end
   local rn = mRandom(1,7)
@@ -1113,7 +1120,8 @@ function spawnEnemy()
       enemy:addEventListener("collision", destroyEnemy);
     end
   else
-    killObject(enemy)
+    enemy:removeSelf()
+    enemy = nil
   end
 end
 
