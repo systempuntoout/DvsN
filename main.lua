@@ -42,6 +42,7 @@ local explosionSheetConfig = require("spritesheets.explosionspritesheetconfig")
 local asteroidSheetConfig = require("spritesheets.asteroidspritesheetconfig")
 local bombSheetConfig = require("spritesheets.bombspritesheetconfig")
 local uiSheetConfig = require("spritesheets.uispritesheetconfig")
+local mushroomSheetConfig = require("spritesheets.mushroomspritesheetconfig")
 
 mRandom = math.random
 
@@ -102,9 +103,10 @@ local ASTEROID_SPAWN_MIN = 3000
 local ASTEROID_SPAWN_MAX = 7000
 local BOMB_SPAWN_MIN = 8000 
 local BOMB_SPAWN_MAX = 10000
-
 local COIN_SPAWN_MIN = 10000 
 local COIN_SPAWN_MAX = 12000
+local MUSHROOM_SPAWN_MIN = 7000 
+local MUSHROOM_SPAWN_MAX = 10000
 
 local TIME_LAST_POWERUP = 10000
 local TIME_LAST_MONSTER = 3000
@@ -115,6 +117,7 @@ local TIME_LAST_CAN = 1000
 local TIME_LAST_COIN = 1000
 local TIME_LAST_ASTEROID = 1000
 local TIME_LAST_BOMB = 1000
+local TIME_LAST_MUSHROOM = 1000
 
 local TIME_LAST_VELOCITY_INCREASE = 1000
 
@@ -125,12 +128,12 @@ local FINALBOSS_SHOOT_MAX = 3000
 local FINALBOSS_MOVE_MIN = 1000
 local FINALBOSS_MOVE_MAX = 2000
 
-local SCORE_FINAL_BOSS_STAGE = 1
-local DELTA_SCORE_FINAL_BOSS_STAGE = 1
+local SCORE_FINAL_BOSS_STAGE = 10000
+local DELTA_SCORE_FINAL_BOSS_STAGE = 15000
 
-local FINALBOSS1_HITS = 0
-local FINALBOSS2_HITS = 0
-local FINALBOSS3_HITS = 0
+local FINALBOSS1_HITS = 8
+local FINALBOSS2_HITS = 10
+local FINALBOSS3_HITS = 15
 
 local JOYEFFECT_TIMER = 1000
 local joyEffectTmpTimer = 1000
@@ -173,6 +176,7 @@ local timeLastCoin
 local timeLastCan
 local timeLastAsteroid
 local timeLastBomb
+local timeLastMushroom
 local level
 local player1
 local player2
@@ -234,7 +238,9 @@ local powerUpSound = audio.loadSound("sounds/powerup.wav");
 local newLiveSound = audio.loadSound("sounds/newLive.wav");
 local ironWallSound = audio.loadSound("sounds/ironWall.mp3");
 local goalSound = audio.loadSound("sounds/goal.mp3");
-local pew = audio.loadSound("sounds/pew.mp3");
+local pew1Sound = audio.loadSound("sounds/pew.mp3");
+local pew2Sound = audio.loadSound("sounds/pew2.mp3");
+local pew3Sound = audio.loadSound("sounds/pew3.mp3");
 local coinSound = audio.loadSound("sounds/coin.mp3");
 local diamondSound = audio.loadSound("sounds/diamond.mp3");
 local balloonSound = audio.loadSound("sounds/balloonPop.mp3");
@@ -247,6 +253,7 @@ local canSound = audio.loadSound("sounds/can.mp3");
 local asteroidSound = audio.loadSound("sounds/asteroid.mp3");
 local bombSound = audio.loadSound("sounds/bomb.mp3");
 local bomb2Sound = audio.loadSound("sounds/bomb2.mp3");
+local mushroomSound = audio.loadSound("sounds/mushroom.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -386,7 +393,8 @@ function showPlayerScreen()
   --bms:setJustification(bms.Justify.LEFT) 															
   bms:show()																																				
   bms:setVerticalSpacing(1.2) 																
-  bms:setSpacing(-2) 																				
+  bms:setSpacing(-2) 	
+  transition.blink(bms,{time = 1700})
   --bms:setModifier("wobble"):animate(1) 
 
 
@@ -432,7 +440,7 @@ function showEndScreen()
   joyGroup = display.newGroup()
   Runtime:addEventListener("enterFrame", joyEffect)
   local textPlayerName = ""
-  if selectedPlayer then
+  if selectedPlayer and selectedPlayer ~= "Custom" then
     textPlayerName = selectedPlayer
   end
   local text = " Allievo " .. textPlayerName .. ",{pause4} \n grazie alla tua \n tenacia, forza e\n determinazione\n sei arrivato fino\n alla fine di questa {slow}\n dura prova !! {pause4}\n\n {$award} {$award} {$award} {$award} {$award} {$award} {$award}"
@@ -484,9 +492,9 @@ function showGameScreen()
   local live = display.newImage( "images/live.png" )
   live.y = 10
   live.x = _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)
-  local liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 11, "Arial", 14)
+  local liveText = display.newText("x", _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+15, 10, "Arial", 14)
   liveText:setTextColor(255, 255, 255, 255)
-  liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 11, "Arial", 14)
+  liveNum = display.newText(NUMBER_OF_LIVES, _SCREEN_CENTRE_X+(_SCREEN_CENTRE_X/1.5)+30, 10, "Arial", 14)
   liveNum:setTextColor(255, 255, 255, 255)
 
 
@@ -505,11 +513,11 @@ function showGameScreen()
       local photo = event.target
       if photo ~= nil then
         customPlayerAlreadyCaptured = true
-        local endWidth = 480  * display.contentScaleX
-        local endHeight = 640 * display.contentScaleY
-        local scale = math.max(endWidth / photo.contentWidth, endHeight / photo.contentHeight)
-        photo.width = photo.width * scale
-        photo.height = photo.height * scale
+        --local endWidth = 480  * display.contentScaleX
+        --local endHeight = 640 * display.contentScaleY
+        --local scale = math.max(endWidth / photo.contentWidth, endHeight / photo.contentHeight)
+        --photo.width = photo.width * scale
+        --photo.height = photo.height * scale
         photo.x = _SCREEN_CENTRE_X
         photo.y = _SCREEN_CENTRE_Y
         photo:toFront() 
@@ -545,9 +553,9 @@ function showGameScreen()
   paddle.name = "paddle"
 
   --Score
-  local scoreText = display.newText("Score: ", 22, 11, "Arial", 14)
+  local scoreText = display.newText("Score: ", 22, 10, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
-  scoreNum = display.newText("0", 60, 11, "Arial", 14)
+  scoreNum = display.newText("0", 60, 10, "Arial", 14)
   scoreNum:setTextColor(255, 255, 255, 255)
 
   --Walls
@@ -613,6 +621,7 @@ function initializeTimers(event)
   timeLastCan = TIME_LAST_CAN + event.time
   timeLastAsteroid = TIME_LAST_ASTEROID + event.time
   timeLastBomb = TIME_LAST_BOMB + event.time
+  timeLastMushroom = TIME_LAST_MUSHROOM + event.time
 end
 
 function gameListeners(event)
@@ -661,7 +670,7 @@ local function onFinalBossCollision(event)
             physics.removeBody(finalBossSprites)
             finalBossSprites.trans = transition.blink(finalBossSprites,{time=500})
             local function stopBlink()
-              if finalBossSprites ~= nil and finalBossSprites.name then
+              if finalBossSprites ~= nil and finalBossSprites.name and not gameOver() then
                 transition.cancel(finalBossSprites.trans)
                 finalBossSprites.alpha = 1
                 physics.addBody( finalBossSprites, "static", {density = 1.0,radius = finalBossSprites.config.radius})
@@ -769,6 +778,11 @@ function gameplayFinalBoss(event)
       else
         moveToX = mRandom(finalBossSprites.x,finalBossSprites.contentWidth /2)
       end
+      if moveToX <=finalBossSprites.contentWidth /2 then
+        finalBossSprites:setSequence("right")
+        finalBossSprites:play()
+        return
+      end
       moveToY = finalBossSprites.y
     end
     if moves[randomMove] == "right" then
@@ -776,6 +790,11 @@ function gameplayFinalBoss(event)
         moveToX = mRandom(finalBossSprites.x, _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2))
       else
         moveToX = mRandom( _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2), finalBossSprites.x)
+      end
+      if moveToX >= _SCREEN_CENTRE_X*2 - (finalBossSprites.contentWidth /2) then
+        finalBossSprites:setSequence("left")
+        finalBossSprites:play()
+        return
       end
       moveToY = finalBossSprites.y
     end
@@ -790,6 +809,11 @@ function gameplayFinalBoss(event)
       else
         moveToY = mRandom(finalBossSprites.y,(finalBossSprites.contentHeight/2) +20 )
       end
+       if moveToY <= (finalBossSprites.contentHeight/2) +20 then
+         finalBossSprites:setSequence("front")
+        finalBossSprites:play()
+        return
+      end
     end
     finalBossSprites:setSequence(moves[randomMove])
     finalBossSprites:play()
@@ -797,19 +821,25 @@ function gameplayFinalBoss(event)
   end
 
   local function finalBossShoot()
+    local soundToPlay
     if level == 1 then
       sheetConfig = bulletSheetConfig
+      soundToPlay = pew1Sound
     elseif level == 2 then
       if mRandom(2) == 1 then
         sheetConfig = bulletSheetConfig
+        soundToPlay = pew1Sound
       else
         sheetConfig = bullet2SheetConfig
+        soundToPlay = pew2Sound
       end
-    else
+    elseif level == 3 then
       if mRandom(2) == 1 then
         sheetConfig = bullet2SheetConfig
+        soundToPlay = pew2Sound
       else
         sheetConfig = bullet3SheetConfig
+        soundToPlay = pew3Sound
       end
     end 
 
@@ -832,7 +862,9 @@ function gameplayFinalBoss(event)
           killObject(event.target)
           Runtime:removeEventListener( "touch", dragPaddle )
           local function shakePaddle()
-            paddle.x = paddle.x0 + math.random(-2,2) 
+            if paddle and paddle.x then
+              paddle.x = paddle.x0 + math.random(-2,2) 
+            end
           end
           timer.performWithDelay(1, function()
               paddle.x0 = paddle.x
@@ -851,7 +883,7 @@ function gameplayFinalBoss(event)
       end
     end
     bulletSprites:addEventListener("collision", onBulletCollision)
-    audio.play(pew)
+    audio.play(soundToPlay)
   end
   if event.time- timeLastFinalBossShoot >= mRandom(FINALBOSS_SHOOT_MIN, FINALBOSS_SHOOT_MAX) and not gameOver() then
     timeLastFinalBossShoot = event.time
@@ -970,13 +1002,17 @@ function gameplay(event)
     spawnCoin()
     timeLastCoin = event.time
   end
-  if event.time-timeLastAsteroid >= mRandom(ASTEROID_SPAWN_MAX, ASTEROID_SPAWN_MAX) and level >=2 and not gameOver() and not playingFinalBoss() then
+  if event.time-timeLastAsteroid >= mRandom(ASTEROID_SPAWN_MIN, ASTEROID_SPAWN_MAX) and level >=2 and not gameOver() and not playingFinalBoss() then
     spawnAsteroid()
     timeLastAsteroid = event.time
   end
-  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MAX, BOMB_SPAWN_MAX)  and  level >=3 and not gameOver() and not playingFinalBoss() then
+  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MIN, BOMB_SPAWN_MAX)  and  level >=3 and not gameOver() and not playingFinalBoss() then
     spawnBomb()
     timeLastBomb = event.time
+  end
+  if event.time-timeLastMushroom >= mRandom(MUSHROOM_SPAWN_MIN, MUSHROOM_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnMushroom()
+    timeLastMushroom = event.time
   end
 
   if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
@@ -1008,7 +1044,7 @@ function gameplay(event)
       killObject(wallTopFinalBoss)
       killObject(finalBossSprites)
     end 
-    showTextBox("GAME OVER", "Score: "..score)
+    showTextBox("GAME OVER", "Score: "..format_num(score,0))
   end    
 
 end
@@ -1093,7 +1129,7 @@ function spawnEnemy()
       transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=function() if event.target ~= nil then display.remove(event.target); event.target = nil end end })
     end
   end
-  local rn = mRandom(1,7)
+  local rn = mRandom(1,12)
   if selectedPlayer == "Diego" then
     if rn == 2 then 
       rn = 1 
@@ -1224,6 +1260,41 @@ function spawnCan(x,y,bypassQuery)
   end
 end
 
+function spawnMushroom(x,y,bypassQuery)
+  local myMushroomSprites = display.newSprite( mushroomSheetConfig.mushroomImageSheet, mushroomSheetConfig.mushroomSequenceData )
+  physics.addBody( myMushroomSprites, "static", {density = 1, radius = 22, isSensor = true})
+  myMushroomSprites.name = "mushroom"
+  myMushroomSprites.isVisible = false
+  myMushroomSprites.xScale = 0.65;
+  myMushroomSprites.yScale = 0.65;
+  myMushroomSprites:setFrame(mRandom(21))
+  local randomX = x or mRandom(myMushroomSprites.contentWidth /2 , _SCREEN_CENTRE_X*2 - myMushroomSprites.contentWidth)
+  local randomY = y or mRandom(myMushroomSprites.contentHeight /2, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2))
+  local esisteMushroom = physics.queryRegion( randomX, randomY, randomX+myMushroomSprites.contentWidth, randomY+myMushroomSprites.contentHeight )
+
+  if (not esisteMushroom) or bypassQuery then
+    myMushroomSprites.isVisible = true
+    gameplayItemsGroup:insert(myMushroomSprites)
+    gameplayItemsGroup:toFront()
+    myMushroomSprites.x = randomX
+    myMushroomSprites.y = randomY
+    local function onMushroomCollision(event)
+      if event.phase == "began" then
+        if event.other.name == "ball"  or event.other.name == "extraBall" then
+          audio.play(mushroomSound)
+          increaseScore(30)
+          killObject(myMushroomSprites)
+          myMushroomSprites = nil
+        end
+      end
+    end
+    myMushroomSprites:addEventListener("collision", onMushroomCollision);
+  else
+    killObject(myMushroomSprites)
+    myMushroomSprites = nil
+  end
+end
+
 function spawnCoin(x,y,bypassQuery)
   local myCoinSprites = display.newSprite( coinSheetConfig.myCoinImageSheet, coinSheetConfig.coinSequenceData )
   physics.addBody( myCoinSprites, "static", {density = 1, radius = 15, isSensor = true})
@@ -1284,6 +1355,15 @@ function spawnMultiCoins()
   for y=1,7 do
     for x = 1, 7 do
       spawnCoin(40*x+5,40*y+5,true)
+    end
+  end
+end
+
+function spawnMultiMushrooms()
+  gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  for y=1,7 do
+    for x = 1, 7 do
+      spawnMushroom(40*x+5,40*y+5,true)
     end
   end
 end 
@@ -1416,7 +1496,11 @@ function spawnBird()
     if event.phase == "began" then
       audio.play(birdSound)
       if sheetConfig.birdtype ==  "red" then
-        spawnMultiCans()
+        if mRandom(2) == 1 then
+          spawnMultiCans()
+        else
+          spawnMultiMushrooms()
+        end
       else
         spawnMultiDiamonds()
       end
@@ -1633,7 +1717,7 @@ end
 function increaseScore(delta)
   score = score + delta
   inGameText("+" .. delta, TEXT_TYPE.SCORE)
-  scoreNum.text = score;
+  scoreNum.text = format_num(score,0);
 end
 
 function goal()
@@ -1825,7 +1909,7 @@ function showTextBox(title, message)
   messageText.y = display.contentCenterY -5;
 
   --Try Again or Congrats Text
-  bestScoreText = display.newText("Record: "..loadedSettings.highScore, 0, 0, "Arial", 17);
+  bestScoreText = display.newText("Record: "..format_num(loadedSettings.highScore,0), 0, 0, "Arial", 17);
   colors.setTextColor(bestScoreText, "black");
   bestScoreText.x = display.contentCenterX;
   bestScoreText.y = display.contentCenterY + 20;
