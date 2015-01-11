@@ -125,13 +125,16 @@ local FINALBOSS_SHOOT_MAX = 3000
 local FINALBOSS_MOVE_MIN = 1000
 local FINALBOSS_MOVE_MAX = 2000
 
-local SCORE_FINAL_BOSS_STAGE = 10000
-local DELTA_SCORE_FINAL_BOSS_STAGE = 15000
+local SCORE_FINAL_BOSS_STAGE = 1
+local DELTA_SCORE_FINAL_BOSS_STAGE = 1
 
-local FINALBOSS1_HITS = 8
-local FINALBOSS2_HITS = 10
-local FINALBOSS3_HITS = 15
- 
+local FINALBOSS1_HITS = 0
+local FINALBOSS2_HITS = 0
+local FINALBOSS3_HITS = 0
+
+local JOYEFFECT_TIMER = 1000
+local joyEffectTmpTimer = 1000
+
 local paddle
 local ball
 local backgroundMusicEnabled = loadedSettings.backgroundMusicEnabled
@@ -147,7 +150,7 @@ local scoreNum
 local liveNum
 local finalBossSprites
 
-local score 
+local score = 0
 local increaseVelocityOnBounce
 local current_lives 
 local extraBallCombo 
@@ -178,7 +181,7 @@ local selectedPlayer
 local customPlayerAlreadyCaptured = false
 local finalBossCurrentHits
 local spawnBalloon
-local joyEffect
+local joyGroup
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -216,6 +219,7 @@ end
 local backgroundIntroMusic = audio.loadStream("sounds/backgroundmusicintro.mp3");
 local backgroundMusic = audio.loadStream("sounds/backgroundmusic3.mp3");
 local backgroundFinalBossMusic = audio.loadStream("sounds/backgroundmusicfinalboss.mp3");
+local backgroundEndGameMusic = audio.loadStream("sounds/backgroundmusicendgame.mp3");
 local bounceSound = audio.loadSound("sounds/bounce.mp3");
 local whistleSound = audio.loadSound("sounds/whistle.mp3");
 local whistle2Sound = audio.loadSound("sounds/whistle2.mp3");
@@ -246,8 +250,39 @@ local bomb2Sound = audio.loadSound("sounds/bomb2.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
+
+function joyEffect(event)
+
+    local function spawnBalloon()
+      local balloonSprite = display.newSprite( balloonSheetConfig.myImageSheet, balloonSheetConfig.balloonSequenceData )
+      balloonSprite:setFrame(mRandom(35))
+      balloonSprite.xScale = 0.6
+      balloonSprite.yScale = 0.6
+      balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
+      balloonSprite.y = _SCREEN_CENTRE_Y*2+balloonSprite.contentWidth
+      physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
+      balloonSprite.name = "balloonJoy"
+      joyGroup:insert(balloonSprite)
+      balloonSprite.gravityScale = -0.3
+      local function balloonGameLogic(event)
+        if balloonSprite ~= nil then
+          if balloonSprite.y and balloonSprite.y < _SCREEN_TOP then
+            Runtime:removeEventListener("enterFrame", balloonGameLogic)
+            killObject(balloonSprite)
+            balloonSprite = nil
+          end
+        end
+      end
+      Runtime:addEventListener("enterFrame", balloonGameLogic)
+    end
+    if event.time > joyEffectTmpTimer then
+      spawnBalloon()
+      joyEffectTmpTimer = event.time + JOYEFFECT_TIMER
+    end
+end
+
 -- Show the Title Screen
-function showTitleScreen()
+function showHomeScreen()
 
   -- Place all title elements into 1 group
   titleScreenGroup = display.newGroup()	
@@ -255,20 +290,19 @@ function showTitleScreen()
   local titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
   titleScreen.x = _SCREEN_CENTRE_X;
   titleScreen.y = _SCREEN_CENTRE_Y;
-  
-  local joyGroup = display.newGroup()
-    
-  
+
+  joyGroup = display.newGroup()
+
+
   -- DiegoNik
   local diegoNik = display.newImage("images/diegonik.png")
   diegoNik.x = _SCREEN_CENTRE_X;
   diegoNik.y = _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/3) ;
   diegoNik.xScale = 0.5
   diegoNik.yScale = 0.5
-
-  fontManager.BitmapString:setTintBrackets("@[","@]") 														
+													
   bms = fontManager.BitmapString:new("font2",60)									
-  bms:setText("@[@]diego @[red@]& @[@]niki") 							
+  bms:setText("diego {red}& {}niki") 							
   bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y+55 ) 																				
   bms:setAnchor(0.5,0.5)
   --bms:setJustification(bms.Justify.LEFT) 															
@@ -314,67 +348,37 @@ function showTitleScreen()
   -- Insert background and button into group
   titleScreenGroup:insert(titleScreen);
   --titleScreenGroup:insert(playBtn);
-  
+
   -- Make play button interactive
   playBtn:addEventListener("tap", choosePlayer);
   uiSprite:addEventListener("tap", function() 
-                                            if backgroundMusicEnabled then
-                                              audio.setVolume(0)
-                                              backgroundMusicEnabled = false
-                                              uiSprite:setFrame(25)
-                                            else
-                                              backgroundMusicEnabled = true
-                                              audio.setVolume(MASTER_VOLUME)
-                                              uiSprite:setFrame(24)
-                                            end
-                                            loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
-                                            loadsave.saveTable( loadedSettings, "settings.json" )
-                                          end)
-
-  local timerEffect = 1000
-  local tmpTimer = 1000
-  local function spawnBalloon()
-    local balloonSprite = display.newSprite( balloonSheetConfig.myImageSheet, balloonSheetConfig.balloonSequenceData )
-    balloonSprite:setFrame(mRandom(35))
-    balloonSprite.xScale = 0.6
-    balloonSprite.yScale = 0.6
-    balloonSprite.x =  mRandom(balloonSprite.contentWidth, _SCREEN_CENTRE_X*2 - balloonSprite.contentWidth)
-    balloonSprite.y = _SCREEN_CENTRE_Y*2+balloonSprite.contentWidth
-    physics.addBody( balloonSprite, "dynamic", {density = 1, radius = 15, isSensor = true})
-    balloonSprite.name = "balloonJoy"
-    joyGroup:insert(balloonSprite)
-    balloonSprite.gravityScale = -0.3
-    local function balloonGameLogic(event)
-      if balloonSprite ~= nil then
-        if balloonSprite.y and balloonSprite.y < _SCREEN_TOP then
-          Runtime:removeEventListener("enterFrame", balloonGameLogic)
-          killObject(balloonSprite)
-          balloonSprite = nil
-        end
+      if backgroundMusicEnabled then
+        audio.setVolume(0)
+        backgroundMusicEnabled = false
+        uiSprite:setFrame(25)
+      else
+        backgroundMusicEnabled = true
+        audio.setVolume(MASTER_VOLUME)
+        uiSprite:setFrame(24)
       end
-    end
-    Runtime:addEventListener("enterFrame", balloonGameLogic)
-    end
-    joyEffect =  function(event)
-   if event.time > tmpTimer then
-      spawnBalloon()
-      tmpTimer = event.time + timerEffect
-    end
-  end
+      loadedSettings.backgroundMusicEnabled = backgroundMusicEnabled
+      loadsave.saveTable( loadedSettings, "settings.json" )
+    end)
   Runtime:addEventListener("enterFrame", joyEffect)
-  
+
   if SKIP_MAIN_SCREEN then
     loadGame()
   end 
 end
 
 
-function playerScreen()
+
+function showPlayerScreen()
   --Background
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
-  													
+
   bms = fontManager.BitmapString:new("testfont",65)									
   bms:setText("Select a player") 							
   bms:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y-60 ) 																				
@@ -384,8 +388,8 @@ function playerScreen()
   bms:setVerticalSpacing(1.2) 																
   bms:setSpacing(-2) 																				
   --bms:setModifier("wobble"):animate(1) 
-  
-  
+
+
   player1 = display.newImage("images/player1.png")
   player1.xScale = 0.8
   player1.yScale = 0.8
@@ -409,18 +413,40 @@ function playerScreen()
   playerCustom:addEventListener("tap",loadGame)
 end
 
-function endScreen()
+function showEndScreen()
+  timer.performWithDelay(4000, function() audio.stop(backgroundMusicChannel)
+                                          backgroundMusicChannel = audio.play(backgroundEndGameMusic, {loops =- 1});
+                                end
+                        )
   --Background
   local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
-  showTextBox("CONGRATULAZIONI!", "Score: "..score)
+  local theKingSprites = display.newSprite( theKingSheetConfig.theKingImageSheet, theKingSheetConfig.theKingSequenceData )
+  theKingSprites.x = _SCREEN_CENTRE_X
+  theKingSprites.y = _SCREEN_CENTRE_Y-160
+  theKingSprites.xScale = 1.3
+  theKingSprites.yScale = 1.3
+  theKingSprites:setSequence("final")
+  theKingSprites:play()
+  joyGroup = display.newGroup()
+  Runtime:addEventListener("enterFrame", joyEffect)
+  local textPlayerName = ""
+  if selectedPlayer then
+    textPlayerName = selectedPlayer
+  end
+  local text = " Allievo " .. textPlayerName .. ",{pause4} \n grazie alla tua \n tenacia, forza e\n determinazione\n sei arrivato fino\n alla fine di questa {slow}\n dura prova !! {pause4}\n\n {$award} {$award} {$award} {$award} {$award} {$award} {$award}"
+  local textObject = display.newBitmapText("",160,300,"font2",35) 								-- create a text object, left justify it.
+  textObject:setJustification(textObject.Justify.LEFT):setVerticalSpacing(0.9)
+
+  local eventMod = fontManager.SampleRollOut:new(fontManager,fontManager.Modifiers.RolloutModifier:new()) 	
+  eventMod:setText(textObject,text) 
 end
 
 
 
 -- Set up the game space
-function initializeGameScreen()
+function showGameScreen()
 
   --audio
   audio.stop(backgroundMusicChannel)
@@ -679,7 +705,7 @@ local function onFinalBossCollision(event)
                     loadedSettings.highScore = score
                     loadsave.saveTable( loadedSettings, "settings.json" )
                   end 
-                  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = endScreen});
+                  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = showEndScreen});
                 else
                   level = level+1
                   backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
@@ -703,7 +729,6 @@ function gameListenersFinalBoss(event)
   if event == "add" then
     Runtime:addEventListener( "enterFrame", gameplayFinalBoss )
     finalBossSprites:addEventListener("collision", onFinalBossCollision)
-    print("removed")
     wallTopRight:removeEventListener("collision", onTopWallCollision);
     wallTopLeft:removeEventListener("collision", onTopWallCollision);
 
@@ -1059,11 +1084,11 @@ function spawnEnemy()
       if event.target then
         event.target:removeEventListener("collision", destroyEnemy);
         timer.performWithDelay(1, function() 
-                                      if event.target then 
-                                          physics.removeBody(event.target)
-                                      end
-                                  end 
-                              )
+            if event.target then 
+              physics.removeBody(event.target)
+            end
+          end 
+        )
       end
       transition.to(event.target, { time=400, x = _SCREEN_CENTRE_X*2, y = 0, alpha= 0, onComplete=function() if event.target ~= nil then display.remove(event.target); event.target = nil end end })
     end
@@ -1461,8 +1486,8 @@ function spawnExtraBall()
   extraBall.angularDamping = 2;
   timer.performWithDelay(200, function()
       if extraBall and extraBall.name then
-      physics.addBody( extraBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
-      transition.to(extraBall, {alpha=1}) 
+        physics.addBody( extraBall, "dynamic", {density = 3, friction = 2, bounce = 1.2, radius = 23, filter = {groupIndex = -1} })
+        transition.to(extraBall, {alpha=1}) 
       end
     end)
   gameplayItemsGroup:insert(extraBall)
@@ -1732,7 +1757,7 @@ function inGameText(text, textType, color, size)
         y = 0, 
         onComplete=killObject})
 
-elseif textType == TEXT_TYPE.GOAL then
+  elseif textType == TEXT_TYPE.GOAL then
     local goal_Text = fontManager.BitmapString:new("font2",size or 60)									
     goal_Text:setText(text) 							
     goal_Text:moveTo(_SCREEN_CENTRE_X, _SCREEN_CENTRE_Y-(_SCREEN_CENTRE_Y/2) ) 																				
@@ -1804,7 +1829,7 @@ function showTextBox(title, message)
   colors.setTextColor(bestScoreText, "black");
   bestScoreText.x = display.contentCenterX;
   bestScoreText.y = display.contentCenterY + 20;
-  
+
   --Reload
   local reload = display.newSprite( uiSheetConfig.uiImageSheet, uiSheetConfig.uiSequenceData )
   reload:setFrame(20)
@@ -1812,8 +1837,8 @@ function showTextBox(title, message)
   reload.yScale= 0.3
   reload.x = display.contentCenterX;
   reload.y = display.contentCenterY + 70;
-  
-  
+
+
   -- Add all elements into a new group
   textBoxGroup = display.newGroup();
   textBoxGroup:insert(textBox);
@@ -1827,13 +1852,13 @@ function showTextBox(title, message)
 end
 
 function restart()
-  initializeGameScreen()
+  showGameScreen()
   textBox:removeEventListener("tap", restart);
 end
 
 function choosePlayer(event)
 
-  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = playerScreen});
+  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = showPlayerScreen});
   audio.play(playSound)
   playBtn:removeEventListener("tap", choosePlayer);
 end
@@ -1850,14 +1875,14 @@ function loadGame(event)
   else
     selectedPlayer = "Diego"
   end
-  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = initializeGameScreen});
+  transition.to(titleScreenGroup,{time = 0, alpha=0, onComplete = showGameScreen});
 
 end
 
 
 -- Main Function
 function main()
-  showTitleScreen();
+  showHomeScreen();
 end
 main()
 

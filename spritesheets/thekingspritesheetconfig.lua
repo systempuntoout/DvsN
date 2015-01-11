@@ -47,6 +47,12 @@ local theKingSequenceData = {
     time=1000,
     loopCount = 4
   },
+   {
+    name="final",                                  
+    sheet=theKingImageSheet,
+    frames= { 1, 2,1, 2,1, 2,1,2,1,2,1,1, 2,1, 2,1, 2,1,2,1,2,1,11,12,11,12,11,12,11,12,11,12},
+    time=15000
+  },
 }
 
 M.theKingImageSheet = theKingImageSheet
