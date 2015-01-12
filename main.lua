@@ -18,10 +18,9 @@ local shake = require "lib.shake"
 local physics = require("physics")
 local loadsave = require( "lib.loadsave" )
 local fontManager = require("lib.fontmanager")		
-
-
-local defaultSettings = require("defaultSettings")
+local defaultSettings = require("lib.defaultSettings")
 local colors = require("lib.colors")
+local bonusMatrix = require("lib.bonusmatrix")
 
 local sheetConfig = require("spritesheets.spritesheetconfig")
 local powerupSheetConfig  = require("spritesheets.powerupspritesheetconfig")
@@ -43,6 +42,7 @@ local asteroidSheetConfig = require("spritesheets.asteroidspritesheetconfig")
 local bombSheetConfig = require("spritesheets.bombspritesheetconfig")
 local uiSheetConfig = require("spritesheets.uispritesheetconfig")
 local mushroomSheetConfig = require("spritesheets.mushroomspritesheetconfig")
+
 
 mRandom = math.random
 
@@ -1334,36 +1334,48 @@ end
 
 function spawnMultiDiamonds()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  local pattern = bonusMatrix.patterns[mRandom(#bonusMatrix.patterns)]
   for y=1,7 do
     for x = 1, 7 do
-      spawnDiamond(40*x+5,40*y+5,true)
+      if (pattern[y][x] == 1) then
+        spawnDiamond(40*x+5,40*y+5,true)
+      end
     end
   end
 end 
 
 function spawnMultiCans()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  local pattern = bonusMatrix.patterns[mRandom(#bonusMatrix.patterns)]
   for y=1,7 do
     for x = 1, 7 do
-      spawnCan(40*x+5,40*y+5,true)
+      if (pattern[y][x] == 1) then
+        spawnCan(40*x+5,40*y+5,true)
+      end
     end
   end
 end
 
 function spawnMultiCoins()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  local pattern = bonusMatrix.patterns[mRandom(#bonusMatrix.patterns)]
   for y=1,7 do
     for x = 1, 7 do
-      spawnCoin(40*x+5,40*y+5,true)
+      if (pattern[y][x] == 1) then
+        spawnCoin(40*x+5,40*y+5,true)
+      end
     end
   end
 end
 
 function spawnMultiMushrooms()
   gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  local pattern = bonusMatrix.patterns[mRandom(#bonusMatrix.patterns)]
   for y=1,7 do
     for x = 1, 7 do
-      spawnMushroom(40*x+5,40*y+5,true)
+      if (pattern[y][x] == 1) then
+        spawnMushroom(40*x+5,40*y+5,true)
+      end
     end
   end
 end 
