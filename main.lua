@@ -294,7 +294,7 @@ function showHomeScreen()
   -- Place all title elements into 1 group
   titleScreenGroup = display.newGroup()	
 
-  local titleScreen = display.newImageRect( "images/soccerfield_360x570.jpg",360,570,true)
+  local titleScreen = display.newImageRect( "images/soccerfield_360x570.png",360,570,true)
   titleScreen.x = _SCREEN_CENTRE_X;
   titleScreen.y = _SCREEN_CENTRE_Y;
 
@@ -382,7 +382,7 @@ end
 
 function showPlayerScreen()
   --Background
-  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  local background = display.newImageRect( "images/soccerfield_360x570.png",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
 
@@ -427,7 +427,7 @@ function showEndScreen()
                                 end
                         )
   --Background
-  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  local background = display.newImageRect( "images/soccerfield_360x570.png",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y 
   local theKingSprites = display.newSprite( theKingSheetConfig.theKingImageSheet, theKingSheetConfig.theKingSequenceData )
@@ -460,7 +460,7 @@ function showGameScreen()
   audio.stop(backgroundMusicChannel)
 
   --Background
-  local background = display.newImageRect( "images/soccerfield_360x570.jpg",360,570)
+  local background = display.newImageRect( "images/soccerfield_360x570.png",360,570)
   background.x = _SCREEN_CENTRE_X
   background.y = _SCREEN_CENTRE_Y  
 
