@@ -42,6 +42,7 @@ local asteroidSheetConfig = require("spritesheets.asteroidspritesheetconfig")
 local bombSheetConfig = require("spritesheets.bombspritesheetconfig")
 local uiSheetConfig = require("spritesheets.uispritesheetconfig")
 local mushroomSheetConfig = require("spritesheets.mushroomspritesheetconfig")
+local chestSheetConfig = require("spritesheets.chestspritesheetconfig")
 
 
 mRandom = math.random
@@ -107,6 +108,8 @@ local COIN_SPAWN_MIN = 10000
 local COIN_SPAWN_MAX = 12000
 local MUSHROOM_SPAWN_MIN = 7000 
 local MUSHROOM_SPAWN_MAX = 10000
+local CHEST_SPAWN_MIN = 7000 
+local CHEST_SPAWN_MAX = 10000
 
 local TIME_LAST_POWERUP = 10000
 local TIME_LAST_MONSTER = 3000
@@ -118,6 +121,7 @@ local TIME_LAST_COIN = 1000
 local TIME_LAST_ASTEROID = 1000
 local TIME_LAST_BOMB = 1000
 local TIME_LAST_MUSHROOM = 1000
+local TIME_LAST_CHEST = 1000
 
 local TIME_LAST_VELOCITY_INCREASE = 1000
 
@@ -177,6 +181,7 @@ local timeLastCan
 local timeLastAsteroid
 local timeLastBomb
 local timeLastMushroom
+local timeLastChest
 local level
 local player1
 local player2
@@ -622,6 +627,8 @@ function initializeTimers(event)
   timeLastAsteroid = TIME_LAST_ASTEROID + event.time
   timeLastBomb = TIME_LAST_BOMB + event.time
   timeLastMushroom = TIME_LAST_MUSHROOM + event.time
+  timeLastChest = TIME_LAST_CHEST + event.time
+  
 end
 
 function gameListeners(event)
@@ -1014,6 +1021,10 @@ function gameplay(event)
     spawnMushroom()
     timeLastMushroom = event.time
   end
+  if event.time-timeLastChest >= mRandom(CHEST_SPAWN_MIN, CHEST_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
+    spawnChest()
+    timeLastChest = event.time
+  end
 
   if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
     timeLastVelocityIncrease = event.time
@@ -1293,6 +1304,32 @@ function spawnMushroom(x,y,bypassQuery)
     killObject(myMushroomSprites)
     myMushroomSprites = nil
   end
+end
+
+function spawnChest()
+  gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+  local myChestSprites = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+  physics.addBody( myChestSprites, "static", {density = 1, radius = 22, isSensor = true})
+  myChestSprites.name = "chest"
+  myChestSprites.xScale = 0.65;
+  myChestSprites.yScale = 0.65;
+  myChestSprites.x = _SCREEN_CENTRE_X
+  myChestSprites.y = _SCREEN_CENTRE_Y
+  myChestSprites:setFrame(2)
+  gameplayItemsGroup:insert(myChestSprites)
+  gameplayItemsGroup:toFront()
+  local function onChestCollision(event)
+    if event.phase == "began" then
+      if event.other.name == "ball"  or event.other.name == "extraBall" then
+        audio.play(mushroomSound)
+        increaseScore(30)
+        killObject(myChestSprites)
+        myChestSprites = nil
+      end
+    end
+  end
+  myChestSprites:addEventListener("collision", onChestCollision);
+  
 end
 
 function spawnCoin(x,y,bypassQuery)
