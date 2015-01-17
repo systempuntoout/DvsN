@@ -89,7 +89,7 @@ local MAX_LEVEL = 3
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
 local MONSTER_SPAWN_MIN = 3000
-local MONSTER_SPAWN_MAX = 7000
+local MONSTER_SPAWN_MAX = 12000
 local BALLOON_SPAWN_MIN = 20000
 local BALLOON_SPAWN_MAX = 35000
 local BIRD_SPAWN_MIN = 20000 
@@ -108,8 +108,8 @@ local COIN_SPAWN_MIN = 10000
 local COIN_SPAWN_MAX = 12000
 local MUSHROOM_SPAWN_MIN = 7000 
 local MUSHROOM_SPAWN_MAX = 10000
-local CHEST_SPAWN_MIN = 40000 
-local CHEST_SPAWN_MAX = 60000
+local CHEST_SPAWN_MIN = 120000 
+local CHEST_SPAWN_MAX = 240000
 
 local TIME_LAST_POWERUP = 10000
 local TIME_LAST_MONSTER = 0
@@ -121,7 +121,7 @@ local TIME_LAST_COIN = 1000
 local TIME_LAST_ASTEROID = 1000
 local TIME_LAST_BOMB = 1000
 local TIME_LAST_MUSHROOM = 1000
-local TIME_LAST_CHEST = 100
+local TIME_LAST_CHEST = 1000
 
 local TIME_LAST_VELOCITY_INCREASE = 1000
 
@@ -135,7 +135,9 @@ local FINALBOSS_MOVE_MAX = 2000
 local SCORE_FINAL_BOSS_STAGE = 10000
 local DELTA_SCORE_FINAL_BOSS_STAGE = 15000
 
-local CHEST_HITS = 3
+local GOALS_CHEST_BONUS_STAGE = 4
+local DELTA_GOALS_CHEST_BONUS_STAGE = 4
+local CHEST_HITS = 2
 
 local FINALBOSS1_HITS = 8
 local FINALBOSS2_HITS = 10
@@ -170,6 +172,7 @@ local timeLastMonster
 local timeLastVelocityIncrease  
 local timeLastFinalBossShoot 
 local scoreFinalBossStage
+local goalsChestBonusStage
 local ballStuck
 local POWER_UPS = {"r","g","b","P","B","S"}
 --local POWER_UPS = {"B","B","B","B","B","B"}
@@ -194,6 +197,7 @@ local customPlayerAlreadyCaptured = false
 local finalBossCurrentHits
 local spawnBalloon
 local joyGroup
+local goals 
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -614,10 +618,13 @@ function initializeGameplayVariables(event)
   extraBallCombo = 0 
   finalBossStage = false
   scoreFinalBossStage = SCORE_FINAL_BOSS_STAGE
+  goalsChestBonusStage = GOALS_CHEST_BONUS_STAGE
   ballStuck = false
   resetTimers = false
   chestBonusStage = false
   level = 1
+  goals = 0
+  
 end
 
 function initializeTimers(event)
@@ -1033,7 +1040,7 @@ function gameplay(event)
       spawnMushroom()
       timeLastMushroom = event.time
     end
-    if event.time-timeLastChest >= mRandom(CHEST_SPAWN_MIN, CHEST_SPAWN_MAX) then
+    if (event.time-timeLastChest >= mRandom(CHEST_SPAWN_MIN, CHEST_SPAWN_MAX)) or (reachedChestBonus()) and not playingChestBonus() then
       spawnChest()
       timeLastChest = event.time
     end
@@ -1086,6 +1093,16 @@ end
 function playingFinalBoss()
   return finalBossStage
 end
+
+function reachedChestBonus() 
+  if  goals >= goalsChestBonusStage and not playingFinalBoss() and not playingChestBonus()then
+    goalsChestBonusStage = goalsChestBonusStage + DELTA_GOALS_CHEST_BONUS_STAGE
+    return true
+  else
+    return false
+  end
+end
+
 
 function playingChestBonus()
   return chestBonusStage
@@ -1326,8 +1343,8 @@ function spawnChest()
   local chestBonus = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
   physics.addBody( chestBonus, "static", {density = 1,  isSensor = true, shape ={ -30,-20, -30,50, 30,-20, 30,50}})
   chestBonus.name = "chestBonus"
-  chestBonus.xScale = 0.3;
-  chestBonus.yScale = 0.3;
+  chestBonus.xScale = 0.4;
+  chestBonus.yScale = 0.4;
   chestBonus:setFrame(1)
   chestBonus.x = mRandom(chestBonus.contentWidth/2, _SCREEN_CENTRE_X*2)
   chestBonus.y = _SCREEN_CENTRE_Y*2 + chestBonus.contentHeight
@@ -1897,6 +1914,7 @@ function increaseScore(delta)
 end
 
 function goal()
+  goals = goals + 1
   audio.play(goalSound)
   theKing("yes")
   startShake()
