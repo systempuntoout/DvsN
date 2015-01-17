@@ -88,7 +88,7 @@ local MAX_LEVEL = 3
 
 local POWERUP_SPAWN_MIN = 15000
 local POWERUP_SPAWN_MAX = 20000
-local MONSTER_SPAWN_MIN = 5000
+local MONSTER_SPAWN_MIN = 3000
 local MONSTER_SPAWN_MAX = 7000
 local BALLOON_SPAWN_MIN = 20000
 local BALLOON_SPAWN_MAX = 35000
@@ -108,11 +108,11 @@ local COIN_SPAWN_MIN = 10000
 local COIN_SPAWN_MAX = 12000
 local MUSHROOM_SPAWN_MIN = 7000 
 local MUSHROOM_SPAWN_MAX = 10000
-local CHEST_SPAWN_MIN = 7000 
-local CHEST_SPAWN_MAX = 10000
+local CHEST_SPAWN_MIN = 40000 
+local CHEST_SPAWN_MAX = 60000
 
 local TIME_LAST_POWERUP = 10000
-local TIME_LAST_MONSTER = 3000
+local TIME_LAST_MONSTER = 0
 local TIME_LAST_BALLOON = 1000
 local TIME_LAST_BIRD = 1000
 local TIME_LAST_DIAMOND = 1000
@@ -121,7 +121,7 @@ local TIME_LAST_COIN = 1000
 local TIME_LAST_ASTEROID = 1000
 local TIME_LAST_BOMB = 1000
 local TIME_LAST_MUSHROOM = 1000
-local TIME_LAST_CHEST = 1000
+local TIME_LAST_CHEST = 100
 
 local TIME_LAST_VELOCITY_INCREASE = 1000
 
@@ -134,6 +134,8 @@ local FINALBOSS_MOVE_MAX = 2000
 
 local SCORE_FINAL_BOSS_STAGE = 10000
 local DELTA_SCORE_FINAL_BOSS_STAGE = 15000
+
+local CHEST_HITS = 3
 
 local FINALBOSS1_HITS = 8
 local FINALBOSS2_HITS = 10
@@ -162,6 +164,7 @@ local increaseVelocityOnBounce
 local current_lives 
 local extraBallCombo 
 local finalBossStage 
+local chestBonusStage
 local timeLastPowerup 
 local timeLastMonster 
 local timeLastVelocityIncrease  
@@ -259,6 +262,9 @@ local asteroidSound = audio.loadSound("sounds/asteroid.mp3");
 local bombSound = audio.loadSound("sounds/bomb.mp3");
 local bomb2Sound = audio.loadSound("sounds/bomb2.mp3");
 local mushroomSound = audio.loadSound("sounds/mushroom.mp3");
+local chestOpenSound = audio.loadSound("sounds/chestOpen.mp3");
+local chestHitSound = audio.loadSound("sounds/chestHit.mp3");
+local chestBonusSound = audio.loadSound("sounds/chestBonus.mp3");
 
 audio.setVolume(MASTER_VOLUME)
 
@@ -610,6 +616,7 @@ function initializeGameplayVariables(event)
   scoreFinalBossStage = SCORE_FINAL_BOSS_STAGE
   ballStuck = false
   resetTimers = false
+  chestBonusStage = false
   level = 1
 end
 
@@ -916,6 +923,9 @@ function updateBall()
 
   -- Lost ball
   if ball.y + (ball.height/2) > _SCREEN_CENTRE_Y*2 then
+    if playingChestBonus() then
+      resetTimers = true
+    end
     audio.play(whistleSound)
     theKing("serious")
     ball.isVisible = false;
@@ -927,10 +937,11 @@ function updateBall()
         ball:setLinearVelocity(0)
         ball:applyAngularImpulse( mRandom(100, 300) )
         paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION   
-        scoreNum.text = score;
+        scoreNum.text = format_num(score,0);
         extraBallCombo = 0
         current_lives = current_lives -1
         liveNum.text = current_lives
+        chestBonusStage = false
         gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
 
         Runtime:addEventListener( "enterFrame", gameLoop )
@@ -975,58 +986,59 @@ end
 
 function gameplay(event)
 
-  if reachedFinalBoss() and not gameOver() then
+  if reachedFinalBoss() and not gameOver()  then
     spawnFinalBoss()
   end
-
-  if event.time-timeLastPowerup >= mRandom(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnPowerUp()
-    timeLastPowerup = event.time
+  
+  if not gameOver() and not playingFinalBoss() and not playingChestBonus() then 
+    if event.time-timeLastPowerup >= mRandom(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX) then
+      spawnPowerUp()
+      timeLastPowerup = event.time
+    end
+    if event.time-timeLastMonster >= mRandom(MONSTER_SPAWN_MIN, MONSTER_SPAWN_MAX) then
+      spawnEnemy()
+      timeLastMonster = event.time
+    end
+    if event.time-timeLastBalloon >= mRandom(BALLOON_SPAWN_MIN, BALLOON_SPAWN_MAX) then
+      spawnBalloon()
+      timeLastBalloon = event.time
+      timeLastBird = event.time
+    end
+    if event.time-timeLastBird >= mRandom(BIRD_SPAWN_MIN, BIRD_SPAWN_MAX) then
+      spawnBird()
+      timeLastBird = event.time
+      timeLastBalloon = event.time
+    end
+    if event.time-timeLastDiamond >= mRandom(DIAMOND_SPAWN_MIN, DIAMOND_SPAWN_MAX) then
+      spawnDiamond()
+      timeLastDiamond = event.time
+    end
+    if event.time-timeLastCan >= mRandom(CAN_SPAWN_MIN, CAN_SPAWN_MAX) then
+      spawnCan()
+      timeLastCan = event.time
+    end
+    if event.time-timeLastCoin >= mRandom(COIN_SPAWN_MIN, COIN_SPAWN_MAX) then
+      spawnCoin()
+      timeLastCoin = event.time
+    end
+    if event.time-timeLastAsteroid >= mRandom(ASTEROID_SPAWN_MIN, ASTEROID_SPAWN_MAX) and level >=2 then
+      spawnAsteroid()
+      timeLastAsteroid = event.time
+    end
+    if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MIN, BOMB_SPAWN_MAX)  and  level >=3 then
+      spawnBomb()
+      timeLastBomb = event.time
+    end
+    if event.time-timeLastMushroom >= mRandom(MUSHROOM_SPAWN_MIN, MUSHROOM_SPAWN_MAX) then
+      spawnMushroom()
+      timeLastMushroom = event.time
+    end
+    if event.time-timeLastChest >= mRandom(CHEST_SPAWN_MIN, CHEST_SPAWN_MAX) then
+      spawnChest()
+      timeLastChest = event.time
+    end
   end
-  if event.time-timeLastMonster >= mRandom(MONSTER_SPAWN_MIN, MONSTER_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnEnemy()
-    timeLastMonster = event.time
-  end
-  if event.time-timeLastBalloon >= mRandom(BALLOON_SPAWN_MIN, BALLOON_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnBalloon()
-    timeLastBalloon = event.time
-    timeLastBird = event.time
-  end
-  if event.time-timeLastBird >= mRandom(BIRD_SPAWN_MIN, BIRD_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnBird()
-    timeLastBird = event.time
-    timeLastBalloon = event.time
-  end
-  if event.time-timeLastDiamond >= mRandom(DIAMOND_SPAWN_MIN, DIAMOND_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnDiamond()
-    timeLastDiamond = event.time
-  end
-  if event.time-timeLastCan >= mRandom(CAN_SPAWN_MIN, CAN_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnCan()
-    timeLastCan = event.time
-  end
-  if event.time-timeLastCoin >= mRandom(COIN_SPAWN_MIN, COIN_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnCoin()
-    timeLastCoin = event.time
-  end
-  if event.time-timeLastAsteroid >= mRandom(ASTEROID_SPAWN_MIN, ASTEROID_SPAWN_MAX) and level >=2 and not gameOver() and not playingFinalBoss() then
-    spawnAsteroid()
-    timeLastAsteroid = event.time
-  end
-  if event.time-timeLastBomb >= mRandom(BOMB_SPAWN_MIN, BOMB_SPAWN_MAX)  and  level >=3 and not gameOver() and not playingFinalBoss() then
-    spawnBomb()
-    timeLastBomb = event.time
-  end
-  if event.time-timeLastMushroom >= mRandom(MUSHROOM_SPAWN_MIN, MUSHROOM_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnMushroom()
-    timeLastMushroom = event.time
-  end
-  if event.time-timeLastChest >= mRandom(CHEST_SPAWN_MIN, CHEST_SPAWN_MAX) and not gameOver() and not playingFinalBoss() then
-    spawnChest()
-    timeLastChest = event.time
-  end
-
-  if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver() then
+  if event.time-timeLastVelocityIncrease >= mRandom(VELOCITY_INCREASE_MIN, VELOCITY_INCREASE_MAX) and not gameOver()  then
     timeLastVelocityIncrease = event.time
     paddle.trans = transition.blink(paddle,{time=500})
     local function stopBlink()
@@ -1062,7 +1074,7 @@ end
 
 
 function reachedFinalBoss() 
-  if  score > scoreFinalBossStage and not playingFinalBoss() then
+  if  score > scoreFinalBossStage and not playingFinalBoss() and not playingChestBonus()then
     finalBossStage = true
     scoreFinalBossStage = scoreFinalBossStage + DELTA_SCORE_FINAL_BOSS_STAGE
     return true
@@ -1073,6 +1085,10 @@ end
 
 function playingFinalBoss()
   return finalBossStage
+end
+
+function playingChestBonus()
+  return chestBonusStage
 end
 
 function addLive()
@@ -1175,7 +1191,7 @@ function spawnEnemy()
     local easingFunctions = {easing.outInElastic, easing.inElastic, easing.inExpo,easing.inQuad, easing.linear }
     if enemy ~= nil and enemy.name then
       timer.performWithDelay(1, function()
-          if enemy ~= nil and enemy.name then
+          if enemy ~= nil and enemy.name and not playingChestBonus() then
             physics.addBody(enemy, "static", {density = 1.0, friction = 1, bounce = 0.2, radius = 25}) 
             local function randomEnemy()
               if enemy and enemy.y and enemy.x and mRandom(1,10) <= 7 then
@@ -1307,28 +1323,139 @@ function spawnMushroom(x,y,bypassQuery)
 end
 
 function spawnChest()
-  gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
-  local myChestSprites = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
-  physics.addBody( myChestSprites, "static", {density = 1, radius = 22, isSensor = true})
-  myChestSprites.name = "chest"
-  myChestSprites.xScale = 0.65;
-  myChestSprites.yScale = 0.65;
-  myChestSprites.x = _SCREEN_CENTRE_X
-  myChestSprites.y = _SCREEN_CENTRE_Y
-  myChestSprites:setFrame(2)
-  gameplayItemsGroup:insert(myChestSprites)
+  local chestBonus = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+  physics.addBody( chestBonus, "static", {density = 1,  isSensor = true, shape ={ -30,-20, -30,50, 30,-20, 30,50}})
+  chestBonus.name = "chestBonus"
+  chestBonus.xScale = 0.3;
+  chestBonus.yScale = 0.3;
+  chestBonus:setFrame(1)
+  chestBonus.x = mRandom(chestBonus.contentWidth/2, _SCREEN_CENTRE_X*2)
+  chestBonus.y = _SCREEN_CENTRE_Y*2 + chestBonus.contentHeight
+  
+  gameplayItemsGroup:insert(chestBonus)
   gameplayItemsGroup:toFront()
-  local function onChestCollision(event)
+  timer.performWithDelay(1, function()
+      transition.to(chestBonus, { time=2000, rotation = 180,
+          y = -chestBonus.contentWidth,
+          x = mRandom(chestBonus.contentWidth/2, _SCREEN_CENTRE_X*2),
+          onComplete=function()
+            display.remove(chestBonus)
+            chestBonus = nil
+          end
+        })  
+    end)
+  local function onChestTouch(event)
     if event.phase == "began" then
-      if event.other.name == "ball"  or event.other.name == "extraBall" then
-        audio.play(mushroomSound)
-        increaseScore(30)
-        killObject(myChestSprites)
-        myChestSprites = nil
-      end
+        local hits = 0
+        ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+        ball:setLinearVelocity(0,0 )
+        ball.v = 0
+        local function onChestClosedCollision(event)
+            if event.other.name == "ball"  or event.other.name == "extraBall" then
+              hits = hits +1
+              startShake()
+              timer.performWithDelay( 200, stopShake )
+              audio.play(chestHitSound)
+              increaseScore(100)
+              if hits == CHEST_HITS then
+                  local lock1 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  gameplayItemsGroup:insert(lock1)
+                  gameplayItemsGroup:toFront()
+                  lock1.x = _SCREEN_CENTRE_X+3
+                  lock1.y = _SCREEN_CENTRE_Y - 121
+                  lock1.xScale = 0.8;
+                  lock1.yScale = 0.8;
+                  lock1:setFrame(4)
+              end
+              if hits == CHEST_HITS*2 then
+                  local lock2 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  gameplayItemsGroup:insert(lock2)
+                  gameplayItemsGroup:toFront()
+                  lock2.x = _SCREEN_CENTRE_X+3
+                  lock2.y = _SCREEN_CENTRE_Y - 121
+                  lock2.xScale = 0.8;
+                  lock2.yScale = 0.8;
+                  lock2:setFrame(5)
+              end
+              if hits == CHEST_HITS*3 then
+                  local lock3 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  gameplayItemsGroup:insert(lock3)
+                  gameplayItemsGroup:toFront()
+                  lock3.x = _SCREEN_CENTRE_X+3
+                  lock3.y = _SCREEN_CENTRE_Y - 121
+                  lock3.xScale = 0.8;
+                  lock3.yScale = 0.8;
+                  lock3:setFrame(5)
+              end
+              if hits == CHEST_HITS*4 then
+                
+                  local function brockenLock()
+                    local splint = {{0,0},{_SCREEN_CENTRE_X*2,0},{0,_SCREEN_CENTRE_Y*2},{_SCREEN_CENTRE_X*2,_SCREEN_CENTRE_Y*2} }
+                    for x = 1, 4 do
+                      local lockPiece = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                      gameplayItemsGroup:insert(lockPiece)
+                      gameplayItemsGroup:toFront()
+                      lockPiece.x = _SCREEN_CENTRE_X+3
+                      lockPiece.y = _SCREEN_CENTRE_Y - 121
+                      lockPiece:setFrame(x+6)
+                      transition.to (lockPiece,{time = 2000, rotation = 180, x = splint[x][1], y = splint[x][2], onComplete =                                                                     function() display.remove(lockPiece);lockPiece = nil end})
+                    end
+                  end
+                  
+                  local chestOpen = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  gameplayItemsGroup:insert(chestOpen)
+                  gameplayItemsGroup:toFront()
+                  brockenLock()
+                  audio.play(chestOpenSound)
+                  chestOpen.name = "chestOpen"
+                  chestOpen.xScale = 0.8;
+                  chestOpen.yScale = 0.8;
+                  chestOpen:setFrame(2)
+                  chestOpen.x = _SCREEN_CENTRE_X
+                  chestOpen.y = _SCREEN_CENTRE_Y - 170
+                  increaseScore(3000)
+                  inGameText("3.000K", TEXT_TYPE.POWERUP,nil,100)
+                  timer.performWithDelay(1, function() event.target:removeEventListener("collision", onChestClosedCollision); end)
+                  if event.target ~= nil and event.target.name then
+                    timer.performWithDelay(1,function() physics.removeBody(event.target) end)
+                  end
+                  transition.to(gameplayItemsGroup, {time = 5000, alpha = 0 , onComplete = function() 
+                                                                              gameplayItemsGroup:removeSelf();  
+                                                                              gameplayItemsGroup = display.newGroup() 
+                                                                              chestBonusStage = false
+                                                                              resetTimers = true
+                                                                              end})
+              end
+              
+            end
+        end
+        chestBonusStage = true
+        audio.play(chestBonusSound)
+        increaseScore(10)
+        gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
+        local chestClosed = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+        gameplayItemsGroup:insert(chestClosed)
+        gameplayItemsGroup:toFront()
+        for y=1,7 do
+          for x = 1, 7 do
+            if (bonusMatrix.bombPattern[1][y][x] == 1) then
+              spawnBomb(40*x+5,40*y+5, true, 0.5)
+            end
+          end
+        end
+        physics.addBody( chestClosed, "static", {density = 1, shape ={ -40,-30, -40,70, 40,-30, 40,70} })
+        chestClosed.name = "chestClosed"
+        chestClosed.xScale = 0.8;
+        chestClosed.yScale = 0.8;
+        chestClosed:setFrame(1)
+        chestClosed.x = _SCREEN_CENTRE_X
+        chestClosed.y = _SCREEN_CENTRE_Y - 170
+        
+        chestClosed:addEventListener("collision", onChestClosedCollision);
+        
     end
   end
-  myChestSprites:addEventListener("collision", onChestCollision);
+  chestBonus:addEventListener("touch", onChestTouch);
   
 end
 
@@ -1417,7 +1544,7 @@ function spawnMultiMushrooms()
   end
 end 
 
-function spawnBomb()
+function spawnBomb(x,y,bypassQuery, bounceCoefficient)
 
   local bombSprites = display.newSprite( bombSheetConfig.bombImageSheet, bombSheetConfig.bombSequenceData )
   bombSprites.name = "bomb"
@@ -1430,7 +1557,7 @@ function spawnBomb()
 
   if (not isQueryRegionOk) or bypassQuery then
     bombSprites.isVisible = true
-    physics.addBody(bombSprites, "static", {density = 1.0, friction = 1, bounce = 1.9, radius = 28}) 
+    physics.addBody(bombSprites, "static", {density = 1.0, friction = 1, bounce = bounceCoefficient or 1.9, radius = 28}) 
     gameplayItemsGroup:insert(bombSprites)
     gameplayItemsGroup:toFront()
     bombSprites.x = randomX
@@ -1458,7 +1585,7 @@ function spawnBomb()
           timer.performWithDelay( 200, stopShake )
           timer.performWithDelay(1,function()
               if (bombSprites ~= nil and bombSprites.name)  then
-                physics.removeBody(bombSprites) 
+                --physics.removeBody(bombSprites) 
                 killObject(bombSprites)
                 bombSprites = nil
               end
