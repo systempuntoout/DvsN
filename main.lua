@@ -587,7 +587,6 @@ function showGameScreen()
 end
 
 function startGame(event)
-
   backgroundMusicChannel = audio.play(backgroundMusic, {loops =- 1});
 
   paddle.bounciness = 0.1;
@@ -599,6 +598,7 @@ function startGame(event)
   physics.addBody(wallTopRight, "static", {density = 1.0, friction = 1, bounce = 0.2})
 
   initializeGameplayVariables(event)
+  inGameText("Level ".. level .. "\n Final Boss " .. format_num(scoreFinalBossStage,0) , TEXT_TYPE.STATIC)
   resetTimers = true
   if (mRandom() <0.5) then
     ball:applyAngularImpulse( mRandom(200, 300) )
@@ -740,7 +740,7 @@ local function onFinalBossCollision(event)
                   level = level+1
                   backgroundMusicChannel = audio.play(backgroundMusic, {loops = -1})
                   gameListeners("add")
-                  inGameText("Level " .. level, TEXT_TYPE.STATIC)
+                  inGameText("Level ".. level .. "\n Final Boss " .. format_num(scoreFinalBossStage,0) , TEXT_TYPE.STATIC)
                   ball.gravityScale = 1
                   if (mRandom() <0.5) then
                     ball:applyAngularImpulse( mRandom(200, 300) )
@@ -1456,11 +1456,11 @@ function spawnChest()
         for y=1,7 do
           for x = 1, 7 do
             if (bonusMatrix.bombPattern[1][y][x] == 1) then
-              spawnBomb(40*x+5,40*y+5, true, 0.5)
+              spawnBomb(40*x+5,40*y+5, true, 0)
             end
           end
         end
-        physics.addBody( chestClosed, "static", {density = 1, shape ={ -40,-30, -40,70, 40,-30, 40,70} })
+        physics.addBody( chestClosed, "static", {density = 1, bounce = 0, shape ={ -40,-30, -40,70, 40,-30, 40,70} })
         chestClosed.name = "chestClosed"
         chestClosed.xScale = 0.8;
         chestClosed.yScale = 0.8;
