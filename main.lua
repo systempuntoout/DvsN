@@ -21,6 +21,7 @@ local fontManager = require("lib.fontmanager")
 local defaultSettings = require("lib.defaultSettings")
 local colors = require("lib.colors")
 local bonusMatrix = require("lib.bonusmatrix")
+local easingX = require("lib.easingx")
 
 local sheetConfig = require("spritesheets.spritesheetconfig")
 local powerupSheetConfig  = require("spritesheets.powerupspritesheetconfig")
@@ -198,6 +199,7 @@ local finalBossCurrentHits
 local spawnBalloon
 local joyGroup
 local goals 
+local instructions
 
 if DEBUG then
   physics.setDrawMode( "hybrid" )
@@ -549,7 +551,7 @@ function showGameScreen()
         paddle.name = "paddle"
         paddle:addEventListener("tap", startGame)
       end
-      inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,60)
+      inGameText("Tap player to play\n Drag to move", TEXT_TYPE.STATIC,nil,60)
     end
 
     if customPlayerAlreadyCaptured then
@@ -566,7 +568,12 @@ function showGameScreen()
 
   paddle.x = _X_PADDLESTARTPOSITION;  paddle.y = _Y_PADDLESTARTPOSITION
   paddle.name = "paddle"
-
+  
+  --Instructions
+  instructions = display.newImage("images/instructions.png")
+  instructions.x = _SCREEN_CENTRE_X
+  instructions.y = _SCREEN_CENTRE_Y
+  
   --Score
   local scoreText = display.newText("Score: ", 22, 10, "Arial", 14)
   scoreText:setTextColor(255, 255, 255, 255)
@@ -580,13 +587,16 @@ function showGameScreen()
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
 
   if selectedPlayer ~="Custom" or customPlayerAlreadyCaptured then
-    inGameText("Tap player to play", TEXT_TYPE.STATIC,nil,60)  
+    inGameText("Tap player to play\n Drag to move", TEXT_TYPE.STATIC,nil,60)  
   end
 
   paddle:addEventListener("tap", startGame)
 end
 
 function startGame(event)
+  transition.to(instructions, {time = 300, alpha= 0, onComplete = function() instructions:removeSelf(); instructions = nil end})
+  
+  
   backgroundMusicChannel = audio.play(backgroundMusic, {loops =- 1});
 
   paddle.bounciness = 0.1;
@@ -1188,11 +1198,15 @@ function spawnEnemy()
   enemy.name = "Monster"
   enemy.isVisible = false
   if mRandom(2) == 1 then
-    enemy.xScale = -0.8
-    enemy.yScale = 0.8
+    enemy.xScale = -0.5
+    enemy.yScale = 0.5
+    enemy.toxScale = -0.8
+    enemy.toyScale = 0.8
   else
-    enemy.xScale = 0.8
-    enemy.yScale = 0.8
+    enemy.xScale = 0.5
+    enemy.yScale = 0.5
+    enemy.toxScale = 0.8
+    enemy.toyScale = 0.8
   end
 
   local randomX = mRandom(enemy.width /2 , _SCREEN_CENTRE_X*2 - enemy.width)
@@ -1205,6 +1219,8 @@ function spawnEnemy()
   if not esisteEnemy then
     enemy.isVisible = true
     enemy.alpha=0.7
+    transition.to(enemy, {time = 800,xScale = enemy.toxScale, yScale = enemy.toyScale, transition = easingX.easeOutElastic})
+    
     local easingFunctions = {easing.outInElastic, easing.inElastic, easing.inExpo,easing.inQuad, easing.linear }
     if enemy ~= nil and enemy.name then
       timer.performWithDelay(1, function()
@@ -1367,7 +1383,11 @@ function spawnChest()
         ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
         ball:setLinearVelocity(0,0 )
         ball.v = 0
+        local lock1
+        local lock2
+        local lock3
         local function onChestClosedCollision(event)
+          if event.phase == "began" then
             if event.other.name == "ball"  or event.other.name == "extraBall" then
               hits = hits +1
               startShake()
@@ -1375,7 +1395,7 @@ function spawnChest()
               audio.play(chestHitSound)
               increaseScore(100)
               if hits == CHEST_HITS then
-                  local lock1 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  lock1 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
                   gameplayItemsGroup:insert(lock1)
                   gameplayItemsGroup:toFront()
                   lock1.x = _SCREEN_CENTRE_X+3
@@ -1385,7 +1405,7 @@ function spawnChest()
                   lock1:setFrame(4)
               end
               if hits == CHEST_HITS*2 then
-                  local lock2 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  lock2 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
                   gameplayItemsGroup:insert(lock2)
                   gameplayItemsGroup:toFront()
                   lock2.x = _SCREEN_CENTRE_X+3
@@ -1395,7 +1415,7 @@ function spawnChest()
                   lock2:setFrame(5)
               end
               if hits == CHEST_HITS*3 then
-                  local lock3 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
+                  lock3 = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
                   gameplayItemsGroup:insert(lock3)
                   gameplayItemsGroup:toFront()
                   lock3.x = _SCREEN_CENTRE_X+3
@@ -1405,7 +1425,10 @@ function spawnChest()
                   lock3:setFrame(5)
               end
               if hits == CHEST_HITS*4 then
-                
+                  lock1:removeSelf()
+                  lock2:removeSelf()
+                  lock3:removeSelf()
+                  
                   local function brockenLock()
                     local splint = {{0,0},{_SCREEN_CENTRE_X*2,0},{0,_SCREEN_CENTRE_Y*2},{_SCREEN_CENTRE_X*2,_SCREEN_CENTRE_Y*2} }
                     for x = 1, 4 do
@@ -1415,7 +1438,7 @@ function spawnChest()
                       lockPiece.x = _SCREEN_CENTRE_X+3
                       lockPiece.y = _SCREEN_CENTRE_Y - 121
                       lockPiece:setFrame(x+6)
-                      transition.to (lockPiece,{time = 2000, rotation = 180, x = splint[x][1], y = splint[x][2], onComplete =                                                                     function() display.remove(lockPiece);lockPiece = nil end})
+                      transition.to (lockPiece,{time = 4000, xScale = 2, yScale = 2, rotation = 180, x = splint[x][1], y = splint[x][2], onComplete =                                                                     function() display.remove(lockPiece);lockPiece = nil end})
                     end
                   end
                   
@@ -1430,25 +1453,32 @@ function spawnChest()
                   chestOpen:setFrame(2)
                   chestOpen.x = _SCREEN_CENTRE_X
                   chestOpen.y = _SCREEN_CENTRE_Y - 170
-                  increaseScore(3000)
-                  inGameText("3.000K", TEXT_TYPE.POWERUP,nil,100)
+                  increaseScore(4000)
+                  inGameText("4.000K", TEXT_TYPE.POWERUP,nil,100)
                   timer.performWithDelay(1, function() event.target:removeEventListener("collision", onChestClosedCollision); end)
                   if event.target ~= nil and event.target.name then
-                    timer.performWithDelay(1,function() physics.removeBody(event.target) end)
+                    timer.performWithDelay(1,function() physics.removeBody(event.target); event.target:removeSelf();event.target = nil end)
                   end
-                  transition.to(gameplayItemsGroup, {time = 5000, alpha = 0 , onComplete = function() 
+                  timer.performWithDelay(1, function() 
+                  ball.x = _X_BALLSTARTPOSITION;  ball.y = _Y_BALLSTARTPOSITION
+                  ball:setLinearVelocity(0,0 )
+                  ball.v = 0
+                  ball.bodyType = "kinematic"
+                  end )
+                  transition.to(gameplayItemsGroup, {time = 3500, alpha = 0.5 , onComplete = function() 
                                                                               gameplayItemsGroup:removeSelf();  
                                                                               gameplayItemsGroup = display.newGroup() 
                                                                               chestBonusStage = false
                                                                               resetTimers = true
+                                                                              ball.bodyType = "dynamic"
                                                                               end})
               end
-              
+              end
             end
         end
         chestBonusStage = true
         audio.play(chestBonusSound)
-        increaseScore(10)
+        increaseScore(100)
         gameplayItemsGroup:removeSelf();gameplayItemsGroup = display.newGroup()
         local chestClosed = display.newSprite( chestSheetConfig.chestImageSheet, chestSheetConfig.chestSequenceData )
         gameplayItemsGroup:insert(chestClosed)
@@ -1456,7 +1486,7 @@ function spawnChest()
         for y=1,7 do
           for x = 1, 7 do
             if (bonusMatrix.bombPattern[1][y][x] == 1) then
-              spawnBomb(40*x+5,40*y+5, true, 0)
+              spawnBomb(40*x,40*y, true, 0)
             end
           end
         end
@@ -1953,7 +1983,7 @@ function onBounce(event)
       if event.other.name == "extraBall" then
         extraBallCombo = extraBallCombo +1
         inGameText("Combo " .. extraBallCombo .."X", TEXT_TYPE.COMBO)
-        score = score + (30 * extraBallCombo)
+        timer.performWithDelay(1000, function() increaseScore(30 * extraBallCombo) end)
       else
         increaseScore(10)
       end
@@ -2030,7 +2060,7 @@ function inGameText(text, textType, color, size)
     static_text:moveTo(_SCREEN_CENTRE_X,_SCREEN_CENTRE_Y ) 																																
     colors.setTintColor(static_text, color)
     static_text:show()
-    transition.to(static_text,{time = 2000, 
+    transition.to(static_text,{time = 3000, 
         alpha = 0.5, 
         y = 0, 
         onComplete=killObject})
