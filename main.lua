@@ -85,6 +85,7 @@ local NUMBER_OF_LIVES = 3
 local MASTER_VOLUME = 0.3
 local MAX_BALL_VELOCITY = 600
 local BALL_VELOCITY_INCREASE = 2
+local BALL_VELOCITY_DECREASE = 0.5
 local MAX_LEVEL = 3
 
 local POWERUP_SPAWN_MIN = 15000
@@ -175,7 +176,7 @@ local timeLastFinalBossShoot
 local scoreFinalBossStage
 local goalsChestBonusStage
 local ballStuck
-local POWER_UPS = {"r","g","b","P","B","S"}
+local POWER_UPS = {"g","b","P","B","S"}
 --local POWER_UPS = {"B","B","B","B","B","B"}
 local resetTimers
 local backgroundMusicChannel
@@ -551,7 +552,6 @@ function showGameScreen()
         paddle.name = "paddle"
         paddle:addEventListener("tap", startGame)
       end
-      inGameText("Tap player to play\n Drag to move", TEXT_TYPE.STATIC,nil,60)
     end
 
     if customPlayerAlreadyCaptured then
@@ -573,6 +573,8 @@ function showGameScreen()
   instructions = display.newImage("images/instructions.png")
   instructions.x = _SCREEN_CENTRE_X
   instructions.y = _SCREEN_CENTRE_Y
+  instructions.alpha = 0
+  transition.to(instructions, {time= 1000, alpha = 1})
   
   --Score
   local scoreText = display.newText("Score: ", 22, 10, "Arial", 14)
@@ -585,10 +587,6 @@ function showGameScreen()
   wallRight = display.newRect(display.contentWidth+1, display.contentHeight/2, 0 , display.contentHeight)
   wallTopLeft = display.newRect(55, 23, 110, 0)
   wallTopRight = display.newRect(_SCREEN_RIGHT-55, 23, 110, 0)
-
-  if selectedPlayer ~="Custom" or customPlayerAlreadyCaptured then
-    inGameText("Tap player to play\n Drag to move", TEXT_TYPE.STATIC,nil,60)  
-  end
 
   paddle:addEventListener("tap", startGame)
 end
@@ -1135,6 +1133,11 @@ end
 function updateBallVelocity()
   local vx, vy = ball:getLinearVelocity()  
   ball:setLinearVelocity(vx*BALL_VELOCITY_INCREASE,vy*BALL_VELOCITY_INCREASE)
+end
+
+function decreaseBallVelocity()
+  local vx, vy = ball:getLinearVelocity()  
+  ball:setLinearVelocity(vx*BALL_VELOCITY_DECREASE,vy*BALL_VELOCITY_DECREASE)
 end
 
 function unstuckBall()
@@ -1916,9 +1919,9 @@ function spawnPowerUp()
         inGameText(".ExtraBall.", TEXT_TYPE.POWERUP)
       elseif myPowerUpSprites.name == "powerUp_S" then
         audio.play(powerUpSound)
-        updateBallVelocity()
+        decreaseBallVelocity()
         increaseScore(100)
-        inGameText(".Speed.", TEXT_TYPE.POWERUP)
+        inGameText(".Slow.", TEXT_TYPE.POWERUP)
       end
 
       killObject(myPowerUpSprites)
