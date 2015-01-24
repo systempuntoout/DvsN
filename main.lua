@@ -655,7 +655,7 @@ end
 
 function gameListeners(event)
   if event == "add" then
-    Runtime:addEventListener( "touch", dragPaddle )
+    paddle:addEventListener( "touch", dragPaddle )
     Runtime:addEventListener( "enterFrame", gameLoop )
     paddle:addEventListener("collision", onBounce);
     wallTopRight:addEventListener("collision", onTopWallCollision);
@@ -664,7 +664,7 @@ function gameListeners(event)
     -- Remove listeners when not needed to free up memory
   elseif event == "remove" then
     Runtime:removeEventListener( "enterFrame", gameLoop )
-    Runtime:removeEventListener( "touch", dragPaddle )
+    paddle:removeEventListener( "touch", dragPaddle )
     paddle:removeEventListener("collision", onBounce);
     wallTopRight:removeEventListener("collision", onTopWallCollision);
     wallTopLeft:removeEventListener("collision", onTopWallCollision);
@@ -889,7 +889,7 @@ function gameplayFinalBoss(event)
           colors.setFillColor( paddle, "green" )
           bulletSprites:removeEventListener("collision", onBulletCollision)
           killObject(event.target)
-          Runtime:removeEventListener( "touch", dragPaddle )
+          paddle:removeEventListener( "touch", dragPaddle )
           local function shakePaddle()
             if paddle and paddle.x then
               paddle.x = paddle.x0 + math.random(-2,2) 
@@ -903,7 +903,7 @@ function gameplayFinalBoss(event)
           timer.performWithDelay(1000, function()
               if paddle and paddle.name and not gameOver() then
                 paddle:setFillColor( 1,1,1)
-                Runtime:addEventListener( "touch", dragPaddle )
+                paddle:addEventListener( "touch", dragPaddle )
                 Runtime:removeEventListener("enterFrame", shakePaddle)
               end
             end
@@ -1457,7 +1457,7 @@ function spawnChest()
                   chestOpen.x = _SCREEN_CENTRE_X
                   chestOpen.y = _SCREEN_CENTRE_Y - 170
                   increaseScore(4000)
-                  inGameText("4.000K", TEXT_TYPE.POWERUP,nil,100)
+                  inGameText("4.000", TEXT_TYPE.POWERUP,nil,100)
                   timer.performWithDelay(1, function() event.target:removeEventListener("collision", onChestClosedCollision); end)
                   if event.target ~= nil and event.target.name then
                     timer.performWithDelay(1,function() physics.removeBody(event.target); event.target:removeSelf();event.target = nil end)
@@ -1662,7 +1662,7 @@ function spawnAsteroid()
       colors.setFillColor( paddle, "green" )
       killObject(asteroidSprites)
       asteroidSprites = nil
-      Runtime:removeEventListener( "touch", dragPaddle )
+      paddle:removeEventListener( "touch", dragPaddle )
       local function shakePaddle()
         paddle.x = paddle.x0 + math.random(-2,2) 
       end
@@ -1674,7 +1674,7 @@ function spawnAsteroid()
       timer.performWithDelay(1000, function()
           if paddle and paddle.name and not gameOver() then
             paddle:setFillColor( 1,1,1)
-            Runtime:addEventListener( "touch", dragPaddle )
+            paddle:addEventListener( "touch", dragPaddle )
             Runtime:removeEventListener("enterFrame", shakePaddle)
           end
         end
@@ -1902,7 +1902,7 @@ function spawnPowerUp()
       elseif myPowerUpSprites.name == "powerUp_g" then
         audio.play(powerUpSound)
         increaseScore(1000)
-        inGameText("1.000K", TEXT_TYPE.POWERUP,nil,100)
+        inGameText("1.000", TEXT_TYPE.POWERUP,nil,100)
       elseif myPowerUpSprites.name == "powerUp_b" then
         audio.play(ironWallSound)
         addLifeSaver()
@@ -2083,14 +2083,16 @@ function inGameText(text, textType, color, size)
 
 end
 
-
+--[[
 function dragPaddle(event)
   local moveX = 0
   if paddle ~= nil and paddle.name then
     if event.phase == "began" then
+      display.getCurrentStage():setFocus( event.target )
       moveX = event.x - paddle.x
     elseif event.phase == "moved" then
       paddle.x = event.x - moveX
+      display.getCurrentStage():setFocus(nil)
     end
 
     if((paddle.x - paddle.width * 0.5) < 0) then
@@ -2099,7 +2101,38 @@ function dragPaddle(event)
       paddle.x = display.contentWidth - paddle.width * 0.5
     end
   end
-end 
+end --]]
+
+function dragPaddle( event )
+	local t = event.target
+
+	local phase = event.phase
+	if "began" == phase then
+		display.getCurrentStage():setFocus( t )
+		t.isFocus = true
+
+		t.x0 = event.x - t.x
+		--t.y0 = event.y - t.y
+
+	elseif t.isFocus then
+		if "moved" == phase then
+			t.x = event.x - t.x0
+			--t.y = event.y - t.y0
+
+		elseif "ended" == phase or "cancelled" == phase then
+			display.getCurrentStage():setFocus( nil )
+			t.isFocus = false  
+
+		end
+	end
+  
+  if((paddle.x - paddle.width * 0.5) < 0) then
+      paddle.x = paddle.width * 0.5
+    elseif((paddle.x + paddle.width * 0.5) > display.contentWidth) then
+      paddle.x = display.contentWidth - paddle.width * 0.5
+    end
+	return true
+end
 
 function showTextBox(title, message)
 
