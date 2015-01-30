@@ -890,13 +890,14 @@ function gameplayFinalBoss(event)
           bulletSprites:removeEventListener("collision", onBulletCollision)
           killObject(event.target)
           paddle:removeEventListener( "touch", dragPaddle )
+          local x0
           local function shakePaddle()
             if paddle and paddle.x then
-              paddle.x = paddle.x0 + math.random(-2,2) 
+              paddle.x = x0 + math.random(-2,2) 
             end
           end
           timer.performWithDelay(1, function()
-              paddle.x0 = paddle.x
+              x0 = paddle.x
               Runtime:addEventListener("enterFrame", shakePaddle)
             end
           )
@@ -1663,11 +1664,12 @@ function spawnAsteroid()
       killObject(asteroidSprites)
       asteroidSprites = nil
       paddle:removeEventListener( "touch", dragPaddle )
+      local x0
       local function shakePaddle()
-        paddle.x = paddle.x0 + math.random(-2,2) 
+        paddle.x = x0 + math.random(-2,2) 
       end
       timer.performWithDelay(1, function()
-          paddle.x0 = paddle.x
+          x0 = paddle.x
           Runtime:addEventListener("enterFrame", shakePaddle)
         end
       )
